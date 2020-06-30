@@ -75,14 +75,14 @@ def one_hot_encode_pmts(pulses, col_omtype, col_pmt):
     return om_matrix
 
 
-def build_data_list(normalized_features, edge_indices, edge_weights, y_transformed):
+def build_data_list(normalized_features, y_transformed):
     data_list = []
-    for features, i, w, truth in tqdm(zip(normalized_features, edge_indices, edge_weights, y_transformed),
-                                      total=len(y_transformed)):
-        dd = Data(x=torch.tensor(features, dtype=torch.float),
-                  y=torch.tensor(truth, dtype=torch.float),
-                  edge_index=torch.tensor(i, dtype=torch.long),
-                  edge_attr=torch.tensor(w, dtype=torch.float),
-                 )
+    for features, truth in tqdm(zip(normalized_features, y_transformed),
+                                total=len(y_transformed),
+                                desc='Filling data list'):
+        dd = Data(
+            x=torch.tensor(features, dtype=torch.float),
+            y=torch.tensor(truth, dtype=torch.float),
+            )
         data_list.append(dd)
     return data_list
