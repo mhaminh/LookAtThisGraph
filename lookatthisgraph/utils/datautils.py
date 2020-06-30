@@ -3,6 +3,7 @@ import copy
 import numpy as np
 from tqdm.auto import tqdm
 from joblib import Parallel, delayed
+from copy import deepcopy
 import torch
 from torch_geometric.data import Data
 from lookatthisgraph.utils.dataloader import get_pulses
@@ -73,6 +74,17 @@ def one_hot_encode_pmts(pulses, col_omtype, col_pmt):
         om_codes.append(oms)
     om_matrix = [one_hot_encode(oms, 28) for oms in tqdm(om_codes)]
     return om_matrix
+
+
+def process_charges(event, include_charge=True):
+    new_event = deepcopy(event)
+    charge_col = 4
+    if include_charge:
+        log_charge = np.log10(new_event[:, charge_col])
+        new_event[:, charge_col] = log_charge
+    else:
+        new_event = np.delete(new_event, charge_col, 1)
+    return new_event
 
 
 def build_data_list(normalized_features, y_transformed):
