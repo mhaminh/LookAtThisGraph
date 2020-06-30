@@ -25,15 +25,6 @@ class PulseNormalizer:
 
 
     def _get_min_max(self):
-#         col_mins = [[] for i in range(len(self._norm_cols))]
-#         col_maxs = [[] for i in range(len(self._norm_cols))]
-#
-#         for event in self._events:
-#             for i, col in enumerate(self._norm_cols):
-#                 col_mins[i].append(np.min(event[:, col]))
-#                 col_maxs[i].append(np.max(event[:, col]))
-#
-#         minmax = [[np.min(mins), np.max(maxs)] for mins, maxs in zip(col_mins, col_maxs)]
         minmax = []
         for col in self._norm_cols:
             features = np.concatenate([event[:, col] for event in self._events])
@@ -74,6 +65,6 @@ class PulseNormalizer:
 
     def normalize(self, mode):
         self.mode = mode
-        nn = [self._get_normalized_event(event) for event in tqdm(self._events)]
+        nn = [self._get_normalized_event(event) for event in tqdm(self._events, desc='Normalizing events')]
         return nn
 
