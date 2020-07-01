@@ -35,8 +35,7 @@ class Dataset(object):
         logging.info('%i events received' % self.n_events)
 
         logging.debug('Transforming truths')
-        # self.transformed_truths = self._transform_truths()
-        labels = ['zenith', 'energy']
+        labels = ['zenith', 'energy', 'pid']
         self.transformed_truths = {label: self._transform_truths(label) for label in labels}
 
         logging.debug('Start normalizing pulses')
@@ -59,6 +58,11 @@ class Dataset(object):
         elif label == 'energy':
             col = self.input_dict['neutrino_energy']
             transformed_truths = [[np.log10(y[col])] for y in self.raw_truths]
+
+        elif label == 'pid':
+            col = self.input_dict['track_energy']
+            transformed_truths = [[1] if y[col] != 0 else [0] for y in self.raw_truths]
+
         else:
             raise ValueError('Truth label %s not recognized' % (label))
 
