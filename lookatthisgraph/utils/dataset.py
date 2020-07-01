@@ -20,12 +20,12 @@ class Dataset(object):
         logging.basicConfig(format='%(asctime)s: %(message)s', level=logging.INFO)
         logging.info('Loading events')
         with path(lookatthisgraph.resources, 'geo_array.npy') as p:
-            file_input = load_events(self.files, geo=p)
+            file_inputs = [load_events(f, geo=p) for f in self.files]
 
         logging.debug('Preprocessing events')
-        raw_pulses = [event['hits'] for event in file_input[0]]
-        raw_truths = [event['params'] for event in file_input[0]]
-        self.input_dict = {key: idx for idx, key in enumerate(file_input[1])}
+        raw_pulses = [event['hits'] for finp in file_inputs for event in finp[0]]
+        raw_truths = [event['params'] for finp in file_inputs for event in finp[0]]
+        self.input_dict = {key: idx for idx, key in enumerate(file_inputs[0][1])}
 
         empty_mask = [i for i, ev in enumerate(raw_pulses) if len(ev) > 0]
         self.raw_pulses = [raw_pulses[i][:, :5] for i in empty_mask]
