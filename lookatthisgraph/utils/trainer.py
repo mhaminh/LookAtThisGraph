@@ -15,9 +15,11 @@ class Trainer:
         self.dataset = config['dataset']
         self.training_target = config['training_target']
         target = self.dataset.transformed_truths[self.training_target]
+        self.include_charge = config['include_charge'] if 'include_charge' in config else True
         self.data_list = build_data_list(
             self.dataset.normalized_features,
-            target
+            target,
+            self.include_charge
         )
         self._target_dim = len(self.data_list[0].y)
         self.reshuffle()

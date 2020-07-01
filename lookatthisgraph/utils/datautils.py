@@ -80,24 +80,25 @@ def torch_to_numpy(x):
         return np.asarray(x.cpu().detach())
 
 
-def process_charges(event, include_charge=True):
+def process_charges(event):
     new_event = deepcopy(event)
     charge_col = 4
-    if include_charge:
-        log_charge = np.log10(new_event[:, charge_col])
-        new_event[:, charge_col] = log_charge
-    else:
-        new_event = np.delete(new_event, charge_col, 1)
+    log_charge = np.log10(new_event[:, charge_col])
+    new_event[:, charge_col] = log_charge
     return new_event
 
 
-def build_data_list(normalized_features, y_transformed):
+def build_data_list(normalized_features, y_transformed, include_charge=True):
     data_list = []
+    if include_charge:
+        feature_cols = [0, 1, 2, 3, 4]
+    else:
+        feature_cols = [0, 1, 2, 3]
     for features, truth in tqdm(zip(normalized_features, y_transformed),
                                 total=len(y_transformed),
                                 desc='Filling data list'):
         dd = Data(
-            x=torch.tensor(features, dtype=torch.float),
+            x=torch.tensor(features[:, feature_cols], dtype=torch.float),
             y=torch.tensor(truth, dtype=torch.float),
             )
         data_list.append(dd)

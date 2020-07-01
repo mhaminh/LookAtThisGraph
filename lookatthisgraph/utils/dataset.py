@@ -16,7 +16,6 @@ class Dataset(object):
 
     def __init__(self, config):
         self.files = config['file_list']
-        self.include_charge = config['include_charge']
         logging.basicConfig(format='%(asctime)s: %(message)s', level=logging.INFO)
         logging.info('Loading events')
         with path(lookatthisgraph.resources, 'geo_array.npy') as p:
@@ -44,7 +43,7 @@ class Dataset(object):
 
 
     def _get_normalized_features(self):
-        features = [process_charges(event, self.include_charge) for event in self.raw_pulses]
+        features = [process_charges(event) for event in self.raw_pulses]
         pn = PulseNormalizer(features)
         features_normalized = pn.normalize(mode='gauss')
         return features_normalized
