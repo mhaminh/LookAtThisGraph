@@ -16,7 +16,6 @@ class Dataset(object):
 
     def __init__(self, config):
         self.files = config['file_list']
-        self.training_labels = config['training_labels']
         self.include_charge = config['include_charge']
         logging.basicConfig(level=logging.INFO)
         logging.info('Loading events')
@@ -33,24 +32,16 @@ class Dataset(object):
         self.raw_truths = [raw_truths[i] for i in empty_mask]
 
         self.n_events = len(self.raw_pulses)
-        logging.info('%i events' % self.n_events)
+        logging.info('%i events received' % self.n_events)
 
         logging.debug('Transforming truths')
-        self.transformed_truths = self._transform_truths()
+        # self.transformed_truths = self._transform_truths()
+        labels = ['zenith', 'energy']
+        self.transformed_truths = {label: self._transform_truths(label) for label in labels}
 
         logging.debug('Start normalizing pulses')
-        normalized_features = self._get_normalized_features()
-
-        self.data_list = build_data_list(
-            normalized_features,
-            self.transformed_truths
-        )
-
-        self.reshuffle()
-
-
-    def reshuffle(self):
-        self.permutation = np.random.permutation(self.n_events)
+        self.normalized_features = self._get_normalized_features()
+        logging.info('Data processing complete')
 
 
     def _get_normalized_features(self):
@@ -60,13 +51,15 @@ class Dataset(object):
         return features_normalized
 
 
-    def _transform_truths(self):
-        if self.training_labels == ['zenith']:
+    def _transform_truths(self, label):
+        if label == 'zenith':
             col = self.input_dict['zenith']
             transformed_truths = [[np.sin(y[col]), np.cos(y[col])] for y in self.raw_truths]
 
-        elif self.training_labels == ['energy']:
+        elif label == 'energy':
             col = self.input_dict['neutrino_energy']
             transformed_truths = [[np.log10(y[col])] for y in self.raw_truths]
+        else:
+            raise ValueError('Truth label %s not recognized' % (label))
 
         return transformed_truths

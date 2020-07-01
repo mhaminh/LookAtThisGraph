@@ -6,11 +6,30 @@ from tqdm.auto import tqdm
 from torch_geometric.data import DataLoader
 from torch.nn import MSELoss
 from lookatthisgraph.utils.dataset import Dataset
+from lookatthisgraph.utils.datautils import build_data_list
 from lookatthisgraph.nets.ConvNet import ConvNet
 
 
 class Trainer:
     def __init__(self, config):
+        self.dataset = config['dataset']
+        self.training_target = config['training_target']
+        target = self.dataset.transformed_truths[self.training_target]
+        self.data_list = build_data_list(
+            self.dataset.normalized_features,
+            target
+        )
+        self._target_dim = len(self.data_list[0].y)
+        self.reshuffle()
+
+        self._batch_size = config['batch_size']
+
+        self._train_split = config['train_split'] if 'train_split' in config else None
+        self._test_split = config['test_split'] if 'test_split' in config else None
+        self._val_split = config['validation_split'] if 'validation_split' in config else 'batch'
+
+        self.train_loader, self.val_loader, self.test_loader = self._get_loaders()
+
         self.device = torch.device('cuda') if 'device' not in config else config['device']
         net = config['net']() if 'net' in config else ConvNet()
         self.model = net.to(self.device)
@@ -22,17 +41,7 @@ class Trainer:
                 step_size=config['scheduling_step_size'],
                 gamma=config['scheduling_gamma'])
         else:
-            logging.info('No scheduler specified')
-
-        self.dataset = config['dataset']
-
-        self._batch_size = config['batch_size']
-
-        self._train_split = config['train_split'] if 'train_split' in config else None
-        self._test_split = config['test_split'] if 'test_split' in config else None
-        self._val_split = config['validation_split'] if 'validation_split' in config else 'batch'
-
-        self.train_loader, self.val_loader, self.test_loader = self._get_loaders()
+            logging.info('No scheduler specified; use constant learning rate')
 
         self._plot = config['plot'] if 'plot' in config else False
 
@@ -41,6 +50,10 @@ class Trainer:
 
         self.state_dicts = []
         self._max_epochs = config['max_epochs']
+
+
+    def reshuffle(self):
+        self.permutation = np.random.permutation(len(self.data_list))
 
 
     def _get_loaders(self):
@@ -55,20 +68,20 @@ class Trainer:
                 n_test = split(self._test_split)
             else:
                 n_test = 0
-            n_train = len(self.dataset.data_list) - n_val - n_test
+            n_train = len(self.data_list) - n_val - n_test
         else:
             n_train = split(self._train_split)
             if self._test_split is not None:
                 n_test = split(self._test_split)
             else:
-                n_test = len(self.dataset.data_list) - n_train - n_val
+                n_test = len(self.data_list) - n_train - n_val
 
         print('%d training samples, %d validation samples, %d test samples received; %d ununsed'\
-                % (n_train, n_val, n_test, len(self.dataset.data_list) - n_train - n_val - n_test))
+                % (n_train, n_val, n_test, len(self.data_list) - n_train - n_val - n_test))
         if n_train + n_val + n_test > self.dataset.n_events:
             raise ValueError('Loader configuration exceeds number of data samples')
 
-        dataset_shuffled = [self.dataset.data_list[i] for i in self.dataset.permutation]
+        dataset_shuffled = [self.data_list[i] for i in self.permutation]
 
         train_loader = DataLoader(dataset_shuffled[:n_train], self._batch_size, drop_last=True, shuffle=True)
         val_loader = DataLoader(dataset_shuffled[n_train:n_train+n_val], self._batch_size, drop_last=True)
