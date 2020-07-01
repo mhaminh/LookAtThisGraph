@@ -5,8 +5,7 @@ import numpy as np
 from tqdm.auto import tqdm
 from torch_geometric.data import DataLoader
 from torch.nn import MSELoss, BCELoss
-from lookatthisgraph.utils.dataset import Dataset
-from lookatthisgraph.utils.datautils import build_data_list
+from lookatthisgraph.utils.datautils import build_data_list, torch_to_numpy
 from lookatthisgraph.nets.ConvNet import ConvNet
 
 
@@ -161,3 +160,20 @@ class Trainer:
                 val_loss = self.crit(out_val, val_data.y)
                 val_loss_all += float(val_data.num_graphs * (val_loss.item()))
         self.validation_losses.append(val_loss_all / len(self.val_loader.dataset))
+
+
+    def evaluate(self):
+        pred = []
+        truth = []
+        with torch.no_grad():
+            self.model.eval()
+            for batch in tqdm(self.test_loader):
+                data = batch.to(self._device)
+                pred.append(torch_to_numpy(self.model(data)))
+                truth.append(torch_to_numpy(data.y))
+
+        pred = np.concatenate(pred)
+        truth = np.concatenate(truth)
+        pred = pred.reshape((-1, self._target_dim))
+        truth = truth.reshape((-1, self._target_dim))
+        return pred, truth
