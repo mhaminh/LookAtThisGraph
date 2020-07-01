@@ -17,7 +17,7 @@ class Dataset(object):
     def __init__(self, config):
         self.files = config['file_list']
         self.include_charge = config['include_charge']
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(format='%(asctime)s: %(message)s', level=logging.INFO)
         logging.info('Loading events')
         with path(lookatthisgraph.resources, 'geo_array.npy') as p:
             file_input = load_events(self.files, geo=p)

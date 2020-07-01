@@ -12,6 +12,7 @@ from lookatthisgraph.nets.ConvNet import ConvNet
 
 class Trainer:
     def __init__(self, config):
+        logging.basicConfig(format='%(asctime)s: %(message)s', level=logging.INFO)
         self.dataset = config['dataset']
         self.training_target = config['training_target']
         target = self.dataset.transformed_truths[self.training_target]
@@ -76,7 +77,7 @@ class Trainer:
             else:
                 n_test = len(self.data_list) - n_train - n_val
 
-        print('%d training samples, %d validation samples, %d test samples received; %d ununsed'\
+        logging.info('%d training samples, %d validation samples, %d test samples received; %d ununsed'\
                 % (n_train, n_val, n_test, len(self.data_list) - n_train - n_val - n_test))
         if n_train + n_val + n_test > self.dataset.n_events:
             raise ValueError('Loader configuration exceeds number of data samples')
@@ -119,14 +120,14 @@ class Trainer:
             try:
                 if self.scheduler.get_lr()[0] != last_lr:
                     last_lr = self.scheduler.get_lr()[0]
-                    print('Iter %i, Learning rate %f' % (epoch, last_lr))
+                    logging.info('Iter %i, Learning rate %f', epoch, last_lr)
 
                 self.scheduler.step()
             except AttributeError:
                 pass
             # print('Min loss: %.4f at step %d' % (np.min(self.validation_losses), np.argmin(self.validation_losses)), end='\r')
-            print("Training loss:%10.3e | Validation loss:%10.3e | Epoch %d / %d | Min validation loss:%10.3e at epoch %d" %\
-                    (self.train_losses[-1], self.validation_losses[-1], epoch, self._max_epochs, np.min(self.validation_losses), np.argmin(self.validation_losses)))
+            logging.info("Training loss:%10.3e | Validation loss:%10.3e | Epoch %d / %d | Min validation loss:%10.3e at epoch %d",
+                         self.train_losses[-1], self.validation_losses[-1], epoch, self._max_epochs, np.min(self.validation_losses), np.argmin(self.validation_losses))
 
     def save_best_model(self, location):
         torch.save(self.state_dicts[np.argmin(self.validation_losses)], location)
