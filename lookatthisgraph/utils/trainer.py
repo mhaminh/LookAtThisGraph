@@ -132,8 +132,13 @@ class Trainer:
             logging.info("Training loss:%10.3e | Validation loss:%10.3e | Epoch %d / %d | Min validation loss:%10.3e at epoch %d",
                          self.train_losses[-1], self.validation_losses[-1], epoch, self._max_epochs, np.min(self.validation_losses), np.argmin(self.validation_losses))
 
+    def load_best_model(self):
+        self.model.load_state_dict(self.state_dicts[np.argmin(self.validation_losses)])
+        logging.info('Best model loaded')
+
     def save_best_model(self, location):
         torch.save(self.state_dicts[np.argmin(self.validation_losses)], location)
+        logging.info('Best model saved')
 
 
     def _train_epoch(self):
