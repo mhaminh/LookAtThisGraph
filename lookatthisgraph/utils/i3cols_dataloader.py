@@ -13,7 +13,7 @@ def get_energies(mcprimary, mctree, mctree_idx, dtype=np.float32):
     track_energy = np.zeros_like(neutrino_energy, dtype=dtype)
     invisible_energy = np.zeros_like(neutrino_energy, dtype=dtype)
     
-    for i in tqdm(range(len(mctree_idx)), desc='Calculating event energies'):
+    for i in range(len(mctree_idx)):
         this_idx = mctree_idx[i]
         this_mctree = mctree[this_idx['start'] : this_idx['stop']]
         pdg = this_mctree['particle']['pdg_encoding']
