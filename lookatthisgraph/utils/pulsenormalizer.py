@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 from tqdm.auto import tqdm
 
@@ -18,8 +19,10 @@ class PulseNormalizer:
         self._norm_cols = norm_cols if norm_cols else list(range(events[0].shape[1]))
 
         self.mode = None
+        logging.debug('Getting normalization parameters')
         self._linear_parameters = self._get_linear_parameters()
         self._norm_parameters = self._get_norm_parameters()
+        logging.debug('Finished calculating normalization parameters')
 
         self.eps = eps # Tuple with column and eps to filter out
 
@@ -54,6 +57,8 @@ class PulseNormalizer:
             return (features - self._linear_parameters[:,1]) / self._linear_parameters[:,0]
         elif self.mode == 'gauss':
             return (features - self._norm_parameters[:, 0]) / self._norm_parameters[:,1]
+        else:
+            raise ValueError('Option not recognized')
 
     def _get_normalized_event(self, event):
         new_event = np.copy(event)
@@ -63,7 +68,11 @@ class PulseNormalizer:
         return new_event
 
 
-    def normalize(self, mode):
+    def normalize(self, mode, parameters=None):
+        if parameters is not None:
+            self._linear_parameters = parameters if mode=='minmax' else self._linear_parameters
+            self._norm_parameters = parameters if mode=='gauss' else self._norm_parameters
+            logging.info('Normalization parameters received, overwriting existing parameters')
         self.mode = mode
         nn = [self._get_normalized_event(event) for event in tqdm(self._events, desc='Normalizing events')]
         return nn
