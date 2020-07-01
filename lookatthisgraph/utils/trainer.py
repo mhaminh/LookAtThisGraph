@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm.auto import tqdm
 from torch_geometric.data import DataLoader
-from torch.nn import MSELoss
+from torch.nn import MSELoss, BCELoss
 from lookatthisgraph.utils.dataset import Dataset
 from lookatthisgraph.utils.datautils import build_data_list
 from lookatthisgraph.nets.ConvNet import ConvNet
@@ -31,11 +31,15 @@ class Trainer:
 
         self.train_loader, self.val_loader, self.test_loader = self._get_loaders()
 
+        if 'loss_function' not in config:
+            self.crit = BCELoss() if self.training_target == 'pid' else MSELoss()
+        # self.crit = config['loss_function']() if 'loss_function' in config else MSELoss()
+        classification = True if isinstance(self.crit, BCELoss) else False
+
         self.device = torch.device('cuda') if 'device' not in config else config['device']
-        net = config['net'] if 'net' in config else ConvNet(self._target_dim)
+        net = config['net'] if 'net' in config else ConvNet(self._target_dim, classification)
         self.model = net.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config['learning_rate'])
-        self.crit = config['loss_function']() if 'loss_function' in config else MSELoss()
         if 'scheduling_step_size' in config and 'scheduling_gamma' in config:
             self.scheduler = torch.optim.lr_scheduler.StepLR(
                 self.optimizer,

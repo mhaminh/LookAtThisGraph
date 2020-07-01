@@ -7,8 +7,9 @@ from torch.nn import BatchNorm1d, PReLU
 import torch_geometric.nn as NN
 
 class ConvNet(torch.nn.Module):
-    def __init__(self, n_labels):
+    def __init__(self, n_labels, classification=False):
         super(ConvNet, self).__init__()
+        self.classification = classification
         self.n_features = 5
         self.n_labels = n_labels
         n_intermediate = 128
@@ -57,6 +58,8 @@ class ConvNet(torch.nn.Module):
         x = F.leaky_relu(self.linear5(x))
 
         x = self.out(x)
+        if self.classification:
+            x = torch.sigmoid(x)
         x = x.view(-1)
 
         return x
