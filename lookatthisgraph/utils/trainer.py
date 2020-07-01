@@ -34,11 +34,11 @@ class Trainer:
         if 'loss_function' not in config:
             self.crit = BCELoss() if self.training_target == 'pid' else MSELoss()
         # self.crit = config['loss_function']() if 'loss_function' in config else MSELoss()
-        classification = True if isinstance(self.crit, BCELoss) else False
+        classification = bool(isinstance(self.crit, BCELoss))
 
-        self.device = torch.device('cuda') if 'device' not in config else config['device']
+        self._device = torch.device('cuda') if 'device' not in config else config['device']
         net = config['net'] if 'net' in config else ConvNet(self._target_dim, classification)
-        self.model = net.to(self.device)
+        self.model = net.to(self._device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config['learning_rate'])
         if 'scheduling_step_size' in config and 'scheduling_gamma' in config:
             self.scheduler = torch.optim.lr_scheduler.StepLR(
@@ -140,10 +140,10 @@ class Trainer:
     def _train_epoch(self):
         loss_all = 0
         for data in self.train_loader:
-            data = data.to(self.device)
+            data = data.to(self._device)
             self.optimizer.zero_grad()
             output = self.model(data)
-            label = data.y.to(self.device)
+            label = data.y.to(self._device)
             loss = self.crit(output, label)
             loss.backward()
             loss_all += float(data.num_graphs * (loss.item()))
@@ -156,7 +156,7 @@ class Trainer:
         with torch.no_grad():
             val_loss_all = 0
             for val_batch in self.val_loader:
-                val_data = val_batch.to(self.device)
+                val_data = val_batch.to(self._device)
                 out_val = self.model(val_data)
                 val_loss = self.crit(out_val, val_data.y)
                 val_loss_all += float(val_data.num_graphs * (val_loss.item()))
