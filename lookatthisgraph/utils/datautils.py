@@ -76,6 +76,10 @@ def one_hot_encode_pmts(pulses, col_omtype, col_pmt):
     return om_matrix
 
 
+def torch_to_numpy(x):
+        return np.asarray(x.cpu().detach())
+
+
 def process_charges(event, include_charge=True):
     new_event = deepcopy(event)
     charge_col = 4
