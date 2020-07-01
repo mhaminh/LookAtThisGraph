@@ -31,7 +31,7 @@ class Trainer:
         self.train_loader, self.val_loader, self.test_loader = self._get_loaders()
 
         self.device = torch.device('cuda') if 'device' not in config else config['device']
-        net = config['net']() if 'net' in config else ConvNet()
+        net = config['net'] if 'net' in config else ConvNet(self._target_dim)
         self.model = net.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config['learning_rate'])
         self.crit = config['loss_function']() if 'loss_function' in config else MSELoss()

@@ -7,10 +7,10 @@ from torch.nn import BatchNorm1d, PReLU
 import torch_geometric.nn as NN
 
 class ConvNet(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, n_labels):
         super(ConvNet, self).__init__()
         self.n_features = 5
-        self.n_labels = 1
+        self.n_labels = n_labels
         n_intermediate = 128
         n_intermediate2 = 6*n_intermediate
         self.conv1 = TAGConv(self.n_features, n_intermediate, 2)
