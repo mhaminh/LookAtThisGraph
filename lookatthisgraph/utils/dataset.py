@@ -43,10 +43,10 @@ class Dataset(object):
         logging.info('Data processing complete')
 
 
-    def _get_normalized_features(self):
+    def _get_normalized_features(self, normalization_parameters):
         features = [process_charges(event) for event in self.raw_pulses]
         pn = PulseNormalizer(features)
-        features_normalized = pn.normalize(mode='gauss', normalization_parameters)
+        features_normalized = pn.normalize('gauss', normalization_parameters)
         self.normalization_parameters = pn.get_normalization_parameters()
         return features_normalized
 

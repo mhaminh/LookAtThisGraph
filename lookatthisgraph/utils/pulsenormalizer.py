@@ -73,7 +73,18 @@ class PulseNormalizer:
             self._linear_parameters = parameters if mode=='minmax' else self._linear_parameters
             self._norm_parameters = parameters if mode=='gauss' else self._norm_parameters
             logging.info('Normalization parameters received, overwriting existing parameters')
+        else:
+            self._linear_parameters = self._get_linear_parameters() if mode=='minmax' else self._linear_parameters
+            self._norm_parameters = self._get_norm_parameters() if mode=='gauss' else self._norm_parameters
+
         self.mode = mode
-        nn = [self._get_normalized_event(event) for event in tqdm(self._events, desc='Normalizing events')]
+        nn = [self._get_normalized_event(event) for event in self._events]
         return nn
 
+
+    def get_normalization_parameters(self):
+        if self.mode == 'minmax':
+            pars = self._linear_parameters
+        elif self.mode == 'gauss':
+            pars = self._norm_parameters
+        return pars, self.mode
