@@ -14,10 +14,11 @@ class Dataset(object):
 
     """Dataset for training of neural net"""
 
-    def __init__(self, config):
-        self.files = config['file_list']
+    def __init__(self, file_list, normalization_parameters=None):
+        self.files = file_list
         logging.basicConfig(format='%(asctime)s: %(message)s', level=logging.INFO)
-        logging.info('Loading events')
+        logging.info('Loading and preprocessing events, this might take a while')
+        logging.debug('Loading events')
         with path(lookatthisgraph.resources, 'geo_array.npy') as p:
             file_inputs = [load_events(f, geo=p) for f in self.files]
 
@@ -38,14 +39,15 @@ class Dataset(object):
         self.transformed_truths = {label: self._transform_truths(label) for label in labels}
 
         logging.debug('Start normalizing pulses')
-        self.normalized_features = self._get_normalized_features()
+        self.normalized_features = self._get_normalized_features(normalization_parameters)
         logging.info('Data processing complete')
 
 
     def _get_normalized_features(self):
         features = [process_charges(event) for event in self.raw_pulses]
         pn = PulseNormalizer(features)
-        features_normalized = pn.normalize(mode='gauss')
+        features_normalized = pn.normalize(mode='gauss', normalization_parameters)
+        self.normalization_parameters = pn.get_normalization_parameters()
         return features_normalized
 
 
