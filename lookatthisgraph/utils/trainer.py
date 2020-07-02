@@ -2,7 +2,10 @@ import logging
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
+import pickle
+from datetime import datetime
 from tqdm.auto import tqdm
+from copy import deepcopy
 from torch_geometric.data import DataLoader
 from torch.nn import MSELoss, BCELoss
 from lookatthisgraph.utils.datautils import build_data_list, evaluate
@@ -34,11 +37,10 @@ class Trainer:
 
         if 'loss_function' not in config:
             self.crit = BCELoss() if self.training_target == 'pid' else MSELoss()
-        # self.crit = config['loss_function']() if 'loss_function' in config else MSELoss()
-        classification = bool(isinstance(self.crit, BCELoss))
+        self._classification = bool(isinstance(self.crit, BCELoss))
 
-        self._device = torch.device('cuda') if 'device' not in config else config['device']
-        net = config['net'] if 'net' in config else ConvNet(self._target_dim, classification)
+        self._device = torch.device('cuda') if 'device' not in config else torch.device(config['device'])
+        net = config['net'] if 'net' in config else ConvNet(self._target_dim, self._classification)
         self.model = net.to(self._device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config['learning_rate'])
         if 'scheduling_step_size' in config and 'scheduling_gamma' in config:
@@ -82,8 +84,8 @@ class Trainer:
             else:
                 n_test = len(self.data_list) - n_train - n_val
 
-        logging.info('%d training samples, %d validation samples, %d test samples received; %d ununsed'\
-                % (n_train, n_val, n_test, len(self.data_list) - n_train - n_val - n_test))
+        logging.info('%d training samples, %d validation samples, %d test samples received; %d ununsed',
+                n_train, n_val, n_test, len(self.data_list) - n_train - n_val - n_test)
         if n_train + n_val + n_test > self.dataset.n_events:
             raise ValueError('Loader configuration exceeds number of data samples')
 
@@ -97,6 +99,8 @@ class Trainer:
 
 
     def train(self):
+        self._time_start = str(datetime.utcnow())
+        self._train_perm = deepcopy(self.permutation)
         self.model.train()
         epoch_bar = tqdm(range(self._max_epochs))
         last_lr = float('inf')
@@ -130,13 +134,16 @@ class Trainer:
                 self.scheduler.step()
             except AttributeError:
                 pass
-            # print('Min loss: %.4f at step %d' % (np.min(self.validation_losses), np.argmin(self.validation_losses)), end='\r')
             logging.info("Training loss:%10.3e | Validation loss:%10.3e | Epoch %d / %d | Min validation loss:%10.3e at epoch %d",
                          self.train_losses[-1], self.validation_losses[-1], epoch, self._max_epochs, np.min(self.validation_losses), np.argmin(self.validation_losses))
+
+        self._time_end = str(datetime.utcnow())
+
 
     def load_best_model(self):
         self.model.load_state_dict(self.state_dicts[np.argmin(self.validation_losses)])
         logging.info('Best model loaded')
+
 
     def save_best_model(self, location):
         torch.save(self.state_dicts[np.argmin(self.validation_losses)], location)
@@ -177,3 +184,40 @@ class Trainer:
         else:
             pred, truth = pred.flatten(), truth.flatten()
         return pred, truth
+
+
+    def save_network_info(self, location):
+        training_info = {
+            'file_names': self.dataset.files,
+            'training_target': self.training_target,
+            'include_charge': self.include_charge,
+            'target_dim': self._target_dim,
+            'classification': self._classification,
+            'n_total': len(self.data_list),
+            'n_train': len(self.train_loader.dataset),
+            'n_val': len(self.val_loader.dataset),
+            'n_test': len(self.test_loader.dataset),
+            'batch_size': self._batch_size,
+            'normalization_parameters': self.dataset.normalization_parameters,
+            'loss_function': str(self.crit),
+            'net': self.model,
+            'optimizer': self.optimizer,
+            'training_losses': self.train_losses,
+            'validation_losses': self.validation_losses,
+            'time_training_start': self._time_start,
+            'permutation': self._train_perm,
+            'best_model': self.state_dicts[np.argmin(self.validation_losses)],
+        }
+        try:
+            training_info['time_training_end'] = self._time_end
+        except AttributeError:
+            pass
+        try:
+            training_info['scheduler'] = self.scheduler.state_dict()
+        except AttributeError:
+            pass
+
+        pickle.dump(training_info, open(location, 'wb'))
+        logging.info('Network dictionary saved')
+
+        return training_info
