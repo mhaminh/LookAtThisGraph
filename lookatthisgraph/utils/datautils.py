@@ -103,3 +103,18 @@ def build_data_list(normalized_features, y_transformed, include_charge=True):
             )
         data_list.append(dd)
     return data_list
+
+
+def evaluate(model, loader, device):
+    pred = []
+    truth = []
+    with torch.no_grad():
+        model.eval()
+        for batch in tqdm(loader):
+            data = batch.to(device)
+            pred.append(torch_to_numpy(model(data)))
+            truth.append(torch_to_numpy(data.y))
+
+    pred = np.concatenate(pred)
+    truth = np.concatenate(truth)
+    return pred, truth
