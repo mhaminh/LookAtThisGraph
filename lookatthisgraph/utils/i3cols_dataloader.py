@@ -57,6 +57,7 @@ def get_params(labels, mcprimary, mctree, mctree_idx, dtype=np.float32):
         elif label == 'energy': params[:, i] = track_energy + cascade_energy
         elif label == 'cascade_energy': params[:, i] = cascade_energy
         elif label == 'track_energy': params[:, i] = track_energy
+        elif label == 'primary_particle': params[:, i] = mcprimary['pdg_encoding']
 
     return params
 
@@ -195,7 +196,7 @@ def load_hits(dir='/home/iwsatlas1/peller/work/oscNext/level7_v01.04/140000_i3co
 
 
 def load_events(dir='/home/iwsatlas1/peller/work/oscNext/level7_v01.04/140000_i3cols',
-              labels=['x', 'y', 'z', 'time', 'azimuth','zenith', 'cascade_energy', 'track_energy', 'neutrino_energy'],
+              labels=['x', 'y', 'z', 'time', 'azimuth','zenith', 'cascade_energy', 'track_energy', 'neutrino_energy', 'primary_particle'],
               geo='./resources/geo_array.npy',
               recos = {},
               dtype=np.float32):
