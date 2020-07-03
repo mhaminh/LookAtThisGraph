@@ -19,10 +19,9 @@ class Dataset(object):
         self.files = [os.path.abspath(f) for f in file_list]
         logging.basicConfig(format='%(asctime)s: %(message)s', level=logging.INFO)
         logging.info('Loading and preprocessing events, this might take a while')
-        logging.debug('Loading events')
-        with path(lookatthisgraph.resources, 'geo_array.npy') as p:
-            file_inputs = [load_events(f, geo=p) for f in self.files]
 
+        logging.debug('Loading events')
+        file_inputs = self._load_inputs()
         logging.debug('Preprocessing events')
         raw_pulses = [event['hits'] for finp in file_inputs for event in finp[0]]
         raw_truths = [event['params'] for finp in file_inputs for event in finp[0]]
@@ -41,6 +40,12 @@ class Dataset(object):
         logging.debug('Start normalizing pulses')
         self.normalized_features = self._get_normalized_features(normalization_parameters)
         logging.info('Data processing complete')
+
+
+    def _load_inputs(self):
+        with path(lookatthisgraph.resources, 'geo_array.npy') as p:
+            file_inputs = [load_events(f, geo=p) for f in self.files]
+        return file_inputs
 
 
     def _get_normalized_features(self, normalization_parameters):
