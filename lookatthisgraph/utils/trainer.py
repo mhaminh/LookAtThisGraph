@@ -129,7 +129,7 @@ class Trainer:
             try:
                 if self.scheduler.get_lr()[0] != last_lr:
                     last_lr = self.scheduler.get_lr()[0]
-                    logging.info('Iter %i, Learning rate %f', epoch, last_lr)
+                    logging.info('Learning rate changed to %f in epoch %d', last_lr, epoch)
 
                 self.scheduler.step()
             except AttributeError:
