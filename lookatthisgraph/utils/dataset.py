@@ -1,3 +1,4 @@
+import os
 import logging
 from importlib.resources import path
 import numpy as np
@@ -15,7 +16,7 @@ class Dataset(object):
     """Dataset for training of neural net"""
 
     def __init__(self, file_list, normalization_parameters=None):
-        self.files = file_list
+        self.files = [os.path.abspath(f) for f in file_list]
         logging.basicConfig(format='%(asctime)s: %(message)s', level=logging.INFO)
         logging.info('Loading and preprocessing events, this might take a while')
         logging.debug('Loading events')
