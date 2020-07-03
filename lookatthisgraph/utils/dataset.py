@@ -28,10 +28,9 @@ class Dataset(object):
         raw_truths = [event['params'] for finp in file_inputs for event in finp[0]]
         self.input_dict = {key: idx for idx, key in enumerate(file_inputs[0][1])}
 
-        empty_mask = [i for i, ev in enumerate(raw_pulses) if len(ev) > 0]
-        self.raw_pulses = [raw_pulses[i][:, :5] for i in empty_mask]
-        self.raw_truths = [raw_truths[i] for i in empty_mask]
-
+        self.non_empty_mask = [i for i, ev in enumerate(raw_pulses) if len(ev) > 0]
+        self.raw_pulses = [raw_pulses[i][:, :5] for i in self.non_empty_mask]
+        self.raw_truths = [raw_truths[i] for i in self.non_empty_mask]
         self.n_events = len(self.raw_pulses)
         logging.info('%i events received' % self.n_events)
 
