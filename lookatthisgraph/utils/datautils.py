@@ -79,9 +79,8 @@ def torch_to_numpy(x):
         return np.asarray(x.cpu().detach())
 
 
-def process_charges(event):
+def process_charges(event, charge_col=4):
     new_event = deepcopy(event)
-    charge_col = 4
     log_charge = np.log10(new_event[:, charge_col])
     new_event[:, charge_col] = log_charge
     return new_event
