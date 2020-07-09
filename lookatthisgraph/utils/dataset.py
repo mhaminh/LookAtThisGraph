@@ -24,6 +24,11 @@ class Dataset(object):
 
         logging.debug('Loading events')
         file_inputs = self._load_inputs()
+        try:
+            self._files_per_path = [len(np.load(os.path.join(p, 'subrun__categ_index.npy'))) for p in self.files]
+            self.n_files = np.sum(self._files_per_path)
+        except:
+            logging.warning('Warning: Number of input files unknown')
         logging.debug('Preprocessing events')
         raw_pulses = [event['hits'] for finp in file_inputs for event in finp[0]]
         raw_truths = [event['params'] for finp in file_inputs for event in finp[0]]
