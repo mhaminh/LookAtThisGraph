@@ -116,3 +116,7 @@ def evaluate(model, loader, device):
     pred = np.concatenate(pred)
     truth = np.concatenate(truth)
     return pred, truth
+
+
+def reconvert_zenith(arr):
+    return np.arctan2(arr[:, 0], arr[:, 1])
