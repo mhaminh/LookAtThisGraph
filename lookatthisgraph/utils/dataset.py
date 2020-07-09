@@ -35,7 +35,7 @@ class Dataset(object):
         self.input_dict = {key: idx for idx, key in enumerate(file_inputs[0][1])}
 
         self.non_empty_mask = [i for i, ev in enumerate(raw_pulses) if len(ev) > 0]
-        self.raw_pulses = [raw_pulses[i][:, :5] for i in self.non_empty_mask]
+        self.raw_pulses = [raw_pulses[i] for i in self.non_empty_mask]
         self.raw_truths = [raw_truths[i] for i in self.non_empty_mask]
         self.n_events = len(self.raw_pulses)
         logging.info('%i events received' % self.n_events)
@@ -45,7 +45,8 @@ class Dataset(object):
         self.transformed_truths = {label: self._transform_truths(label) for label in labels}
 
         logging.debug('Start normalizing pulses')
-        self.normalized_features = self._get_normalized_features(normalization_parameters)
+        processed_features = self._preprocess_features()
+        self.normalized_features = self._get_normalized_features(processed_features, normalization_parameters)
         logging.info('Data processing complete')
 
 
@@ -55,8 +56,12 @@ class Dataset(object):
         return file_inputs
 
 
-    def _get_normalized_features(self, normalization_parameters):
-        features = [process_charges(event) for event in self.raw_pulses]
+    def _preprocess_features(self):
+        features = [process_charges(event[:, :5]) for event in self.raw_pulses]
+        return features
+
+
+    def _get_normalized_features(self, features, normalization_parameters):
         pn = PulseNormalizer(features)
         features_normalized = pn.normalize('gauss', normalization_parameters)
         self.normalization_parameters = pn.get_normalization_parameters()
