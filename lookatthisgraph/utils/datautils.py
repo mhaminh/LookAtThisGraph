@@ -120,3 +120,12 @@ def evaluate(model, loader, device):
 
 def reconvert_zenith(arr):
     return np.arctan2(arr[:, 0], arr[:, 1])
+
+
+def filter_dict(dictionary, filter_mask):
+    try:
+        dictionary = {key: item[filter_mask] for key, item in dictionary.items()}
+    except:
+        dictionary = {key: [item[i] for i in filter_mask] for key, item in dictionary.items()}
+
+    return dictionary
