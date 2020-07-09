@@ -181,10 +181,10 @@ def load_hits(dir='/home/iwsatlas1/peller/work/oscNext/level7_v01.04/140000_i3co
     single_hits[:, 0:3] = geo[string_idx, om_idx]
     single_hits[:, 3] = hits['pulse']['time']
     single_hits[:, 4] = hits['pulse']['charge']
-    single_hits[:, 5] = hits['pulse']['flags'] & 1 # is LC or not?
-    single_hits[:, 6] = (hits['pulse']['flags'] & 2) / 2 # has ATWD or not?
-    single_hits[:, 7] = string_idx
-    single_hits[:, 8] = om_idx
+#     single_hits[:, 5] = hits['pulse']['flags'] & 1 # is LC or not?
+#     single_hits[:, 6] = (hits['pulse']['flags'] & 2) / 2 # has ATWD or not?
+#     single_hits[:, 7] = string_idx
+#     single_hits[:, 8] = om_idx
 
     params = get_params(labels, mcprimary, mctree, mctree_idx)
 
