@@ -6,7 +6,6 @@ from joblib import Parallel, delayed
 from copy import deepcopy
 import torch
 from torch_geometric.data import Data
-from lookatthisgraph.utils.dataloader import get_pulses
 from lookatthisgraph.utils.icecubeutils import get_dom_positions
 
 
