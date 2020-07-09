@@ -49,6 +49,10 @@ class Dataset(object):
         self.normalized_features = self._get_normalized_features(processed_features, normalization_parameters)
         logging.info('Data processing complete')
 
+        self.filter = np.arange(len(self.normalized_features))
+        self.filtered_features = self.normalized_features
+        self.filtered_truths = self.transformed_truths
+
         self.results = {
             'zenith': None,
             'energy': None,
@@ -92,6 +96,22 @@ class Dataset(object):
             raise ValueError('Truth label %s not recognized' % (label))
 
         return transformed_truths
+
+    def apply_filter(self, filter_mask):
+        self.filter = filter_mask
+        try:
+            self.filtered_features = self.normalized_features[filter_mask]
+            self.filtered_truths = {key: item[filter_mask] for key, item in self.transformed_truths.items()}
+        except:
+            self.filtered_features = np.array([self.normalized_features[i] for i in filter_mask])
+            self.filtered_truths = {key: np.array([item[i] for i in filter_mask]) for key, item in self.transformed_truths.items()}
+        logging.info('Filter applied')
+
+    def reset_filter(self):
+        self.filter = np.arange(len(self.normalized_features))
+        self.filtered_features = self.normalized_features
+        self.filtered_truths = self.transformed_truths
+        logging.info('Filter removed')
 
 
     def write_results(self, result, target_label):

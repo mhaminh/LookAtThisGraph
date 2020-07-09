@@ -17,10 +17,10 @@ class Trainer:
         logging.basicConfig(format='%(asctime)s: %(message)s', level=logging.INFO)
         self.dataset = config['dataset']
         self.training_target = config['training_target']
-        target = self.dataset.transformed_truths[self.training_target]
+        target = self.dataset.filtered_truths[self.training_target]
         self.include_charge = config['include_charge'] if 'include_charge' in config else True
         self.data_list = build_data_list(
-            self.dataset.normalized_features,
+            self.dataset.filtered_features,
             target,
             self.include_charge
         )
