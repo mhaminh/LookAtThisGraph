@@ -1,6 +1,6 @@
 import logging
 import torch
-import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import pickle
 from datetime import datetime
@@ -52,6 +52,9 @@ class Trainer:
             logging.info('No scheduler specified; use constant learning rate')
 
         self._plot = config['plot'] if 'plot' in config else False
+        if self._plot == 'save':
+            mpl.use('agg')
+        import matplotlib.pyplot as plt
 
         self.train_losses = []
         self.validation_losses = []
@@ -99,13 +102,14 @@ class Trainer:
 
 
     def train(self):
+        import matplotlib.pyplot as plt
         self._time_start = str(datetime.utcnow())
         self._train_perm = deepcopy(self.permutation)
         self.model.train()
         epoch_bar = tqdm(range(self._max_epochs))
         last_lr = float('inf')
 
-        if self._plot:
+        if self._plot != False :
             fig = plt.figure()
             ax = fig.add_subplot(111)
     #             plt.ion()
@@ -123,8 +127,13 @@ class Trainer:
                 ax.clear()
                 plt.plot(self.train_losses, label="Training")
                 plt.plot(self.validation_losses, label="Validation")
+                plt.legend()
+                plt.xlabel('Epoch')
+                plt.ylabel('Loss')
                 fig.canvas.draw()
                 plt.pause(0.05)
+                if self._plot == 'save':
+                    plt.savefig('training.pdf')
 
             try:
                 if self.scheduler.get_lr()[0] != last_lr:
