@@ -49,6 +49,13 @@ class Dataset(object):
         self.normalized_features = self._get_normalized_features(processed_features, normalization_parameters)
         logging.info('Data processing complete')
 
+        self.results = {
+            'zenith': None,
+            'energy': None,
+            'pid': None,
+        }
+
+
 
     def _load_inputs(self):
         with path(lookatthisgraph.resources, 'geo_array.npy') as p:
@@ -85,3 +92,7 @@ class Dataset(object):
             raise ValueError('Truth label %s not recognized' % (label))
 
         return transformed_truths
+
+
+    def write_results(self, result, target_label):
+        self.results[target_label] = np.array(result).flatten()
