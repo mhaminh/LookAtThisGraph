@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from torch_geometric.data import DataLoader
 import logging
 from copy import deepcopy
@@ -33,16 +34,26 @@ class Model:
     def set_device_type(self, device_type):
         self._device = torch.device(device_type)
         self.load_best_model() if self._best_model is not None else 0
-    
 
-    def evaluate_dataset(self, dataset, batch_size):
+
+    def evaluate_dataset(self, dataset, batch_size, evaluate_all=True):
         data_list = build_data_list(
             dataset.normalized_features,
             dataset.transformed_truths[self.training_target],
             self._include_charge
         )
-        loader = DataLoader(data_list, batch_size=batch_size, drop_last=True)
+        n_rest = len(data_list) % batch_size
+        loader = DataLoader(data_list[:-n_rest], batch_size=batch_size)
         pred, truth = evaluate(self.model, loader, self._device)
         pred = pred.reshape((-1, self._target_dim))
         truth = truth.reshape((-1, self._target_dim))
+
+        if evaluate_all:
+            rest_loader = DataLoader(data_list[-n_rest:], batch_size=n_rest)
+            pred_rest, truth_rest = evaluate(self.model, rest_loader, self._device)
+            pred_rest = pred_rest.reshape((-1, self._target_dim))
+            truth_rest = truth_rest.reshape((-1, self._target_dim))
+
+            pred = np.concatenate([pred, pred_rest])
+            truth = np.concatenate([truth, truth_rest])
         return pred, truth
