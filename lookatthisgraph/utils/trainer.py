@@ -1,6 +1,6 @@
 import logging
 import torch
-import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 import pickle
 from datetime import datetime
@@ -53,8 +53,7 @@ class Trainer:
 
         self._plot = config['plot'] if 'plot' in config else False
         if self._plot == 'save':
-            mpl.use('agg')
-        import matplotlib.pyplot as plt
+            plt.switch_backend('agg')
 
         self.train_losses = []
         self.validation_losses = []
@@ -62,6 +61,7 @@ class Trainer:
         self.state_dicts = []
         self._max_epochs = config['max_epochs']
 
+        self._fig, self._ax = None, None
 
     def reshuffle(self):
         self.permutation = np.random.permutation(len(self.data_list))
@@ -110,11 +110,7 @@ class Trainer:
         last_lr = float('inf')
 
         if self._plot != False :
-            fig = plt.figure()
-            ax = fig.add_subplot(111)
-    #             plt.ion()
-            fig.show()
-            fig.canvas.draw()
+            self._setup_plot()
 
         for epoch in epoch_bar:
 
@@ -124,17 +120,7 @@ class Trainer:
 
             epoch_bar.set_description("Train: %.2e, val: %.2e" % (self.train_losses[-1], self.validation_losses[-1]))
             if self._plot:
-                ax.clear()
-                plt.plot(self.train_losses, label="Training")
-                plt.plot(self.validation_losses, label="Validation")
-                plt.legend()
-                plt.xlabel('Epoch')
-                plt.ylabel('Loss')
-                fig.canvas.draw()
-                plt.pause(0.05)
-                if self._plot == 'save':
-                    plt.savefig('training.pdf')
-
+                self._plot_training()
             try:
                 if self.scheduler.get_lr()[0] != last_lr:
                     last_lr = self.scheduler.get_lr()[0]
@@ -230,3 +216,23 @@ class Trainer:
         logging.info('Network dictionary saved')
 
         return training_info
+
+
+    def _setup_plot(self):
+        self._fig = plt.figure()
+        self._ax = self._fig.add_subplot(111)
+        self._fig.show()
+        self._fig.canvas.draw()
+
+
+    def _plot_training(self):
+        self._ax.clear()
+        plt.plot(self.train_losses, label="Training")
+        plt.plot(self.validation_losses, label="Validation")
+        plt.legend()
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        self._fig.canvas.draw()
+        plt.pause(0.05)
+        if self._plot == 'save':
+            plt.savefig('training.pdf')
