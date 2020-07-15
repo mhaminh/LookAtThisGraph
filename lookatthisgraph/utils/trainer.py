@@ -17,15 +17,13 @@ class Trainer:
         logging.basicConfig(format='%(asctime)s: %(message)s', level=logging.INFO)
         self.dataset = config['dataset']
         self.training_target = config['training_target']
-        target = self.dataset.filtered_truths[self.training_target]
-        self.include_charge = config['include_charge'] if 'include_charge' in config else True
-        self.data_list = build_data_list(
-            self.dataset.filtered_features,
-            target,
-            self.include_charge
-        )
-        self._target_dim = len(self.data_list[0].y)
+        # self.include_charge = config['include_charge'] if 'include_charge' in config else True
+        self.data_list = self.dataset.data_list
+        self._n_truths = len(self.data_list[0].y)
+        self._target_col = self.dataset.truth_cols[self.training_target]
         self._source_dim = self.data_list[0].x.shape[1]
+        self._target_dim = len(self._target_col)
+        logging.debug('Training using %d features on %d targets', self._source_dim, self._target_dim)
         self.reshuffle()
 
         self._batch_size = config['batch_size']
@@ -141,19 +139,20 @@ class Trainer:
         logging.info('Best model loaded')
 
 
-    def save_best_model(self, location):
-        torch.save(self.state_dicts[np.argmin(self.validation_losses)], location)
-        logging.info('Best model saved')
+    def _evaluate_loss(self, data):
+        data = data.to(self._device)
+        output = self.model(data)
+        y = data.y.view(-1, self._n_truths)[:, self._target_col].flatten()
+        label = y.to(self._device)
+        loss = self.crit(output, label)
+        return loss
 
 
     def _train_epoch(self):
         loss_all = 0
         for data in self.train_loader:
-            data = data.to(self._device)
             self.optimizer.zero_grad()
-            output = self.model(data)
-            label = data.y.to(self._device)
-            loss = self.crit(output, label)
+            loss = self._evaluate_loss(data)
             loss.backward()
             loss_all += float(data.num_graphs * (loss.item()))
             self.optimizer.step()
@@ -165,20 +164,18 @@ class Trainer:
         with torch.no_grad():
             val_loss_all = 0
             for val_batch in self.val_loader:
-                val_data = val_batch.to(self._device)
-                out_val = self.model(val_data)
-                val_loss = self.crit(out_val, val_data.y)
-                val_loss_all += float(val_data.num_graphs * (val_loss.item()))
+                val_loss = self._evaluate_loss(val_batch)
+                val_loss_all += float(val_batch.num_graphs * (val_loss.item()))
         self.validation_losses.append(val_loss_all / len(self.val_loader.dataset))
 
 
     def evaluate_test_samples(self):
-        pred, truth = evaluate(self.model, self.test_loader, self._device)
-        if self._target_dim > 1:
-            pred = pred.reshape((-1, self._target_dim))
-            truth = truth.reshape((-1, self._target_dim))
-        else:
-            pred, truth = pred.flatten(), truth.flatten()
+        self.load_best_model()
+        pred = evaluate(self.model, self.test_loader, self._device)
+        pred = np.squeeze(pred.reshape(-1, self._target_dim))
+        truth = np.array([np.array(d.y) for d in self.test_loader.dataset])[:len(pred)]
+        print(truth)
+        truth = {key: truth[:, cols] for key, cols in self.dataset.truth_cols.items()}
         return pred, truth
 
 
@@ -186,7 +183,7 @@ class Trainer:
         training_info = {
             'file_names': self.dataset.files,
             'training_target': self.training_target,
-            'include_charge': self.include_charge,
+            # 'include_charge': self.include_charge,
             'source_dim': self._source_dim,
             'target_dim': self._target_dim,
             'classification': self._classification,

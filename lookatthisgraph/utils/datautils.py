@@ -86,12 +86,11 @@ def process_charges(event, charge_col=4):
     return new_event
 
 
-def build_data_list(normalized_features, y_transformed, include_charge=True):
+def build_data_list(normalized_features, y_transformed, include_charge=True, charge_col=4):
     data_list = []
-    if include_charge:
-        feature_cols = [0, 1, 2, 3, 4]
-    else:
-        feature_cols = [0, 1, 2, 3]
+    n_features = normalized_features[0].shape[1]
+    feature_cols = np.arange(n_features)
+    # feature_cols = np.delete(feature_cols, charge_col) if ~include_charge else feature_cols
     for features, truth in tqdm(zip(normalized_features, y_transformed),
                                 total=len(y_transformed),
                                 desc='Filling data list'):
@@ -104,6 +103,14 @@ def build_data_list(normalized_features, y_transformed, include_charge=True):
 
 
 def evaluate(model, loader, device):
+    with torch.no_grad():
+        model.eval()
+        pred = [torch_to_numpy(model(batch.to(device))) for batch in tqdm(loader)]
+    return np.array(pred)
+
+
+
+def evaluate_with_truth(model, loader, device, target_col):
     pred = []
     truth = []
     with torch.no_grad():
@@ -111,7 +118,7 @@ def evaluate(model, loader, device):
         for batch in tqdm(loader):
             data = batch.to(device)
             pred.append(torch_to_numpy(model(data)))
-            truth.append(torch_to_numpy(data.y))
+            truth.append(torch_to_numpy(data.y[:, target_col]))
 
     pred = np.concatenate(pred)
     truth = np.concatenate(truth)
@@ -129,3 +136,17 @@ def filter_dict(dictionary, filter_mask):
         dictionary = {key: [item[i] for i in filter_mask] for key, item in dictionary.items()}
 
     return dictionary
+
+
+def truths_to_array(truth_dict):
+    idx = [0]
+    truth_cols = {}
+    truths = []
+    for key, item in truth_dict.items():
+        n_cols = item.shape[1]
+        cols = np.arange(idx[-1], idx[-1] + n_cols)
+        truth_cols[key] = cols
+        idx.append(cols[-1]+1)
+        truths.append(item)
+    truths = np.concatenate(truths, axis=1)
+    return truth_cols, truths

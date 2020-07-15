@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import lookatthisgraph.resources
 from torch_geometric.data import Data, DataLoader
-from lookatthisgraph.utils.datautils import process_charges, build_data_list
+from lookatthisgraph.utils.datautils import process_charges, build_data_list, truths_to_array
 from lookatthisgraph.utils.pulsenormalizer import PulseNormalizer
 from lookatthisgraph.utils.i3cols_dataloader import load_events
 
@@ -53,6 +53,14 @@ class Dataset(object):
         self.filtered_features = self.normalized_features
         self.filtered_truths = self.transformed_truths
 
+        self.truth_cols, truth_arr = truths_to_array(self.filtered_truths)
+
+        self._raw_data_list = build_data_list(
+            self.filtered_features,
+            truth_arr,
+        )
+        self.data_list = self._raw_data_list
+
         self.results = {
             'zenith': None,
             'energy': None,
@@ -95,22 +103,26 @@ class Dataset(object):
         else:
             raise ValueError('Truth label %s not recognized' % (label))
 
-        return transformed_truths
+        return np.array(transformed_truths)
 
     def apply_filter(self, filter_mask):
         self.filter = filter_mask
         try:
             self.filtered_features = self.normalized_features[filter_mask]
             self.filtered_truths = {key: item[filter_mask] for key, item in self.transformed_truths.items()}
+            self.data_list = self._raw_data_list[filter_mask]
         except:
             self.filtered_features = np.array([self.normalized_features[i] for i in filter_mask])
             self.filtered_truths = {key: np.array([item[i] for i in filter_mask]) for key, item in self.transformed_truths.items()}
+            self.data_list = [self._raw_data_list[i] for i in filter_mask]
         logging.info('Filter applied')
+
 
     def reset_filter(self):
         self.filter = np.arange(len(self.normalized_features))
         self.filtered_features = self.normalized_features
         self.filtered_truths = self.transformed_truths
+        self.data_list = self._raw_data_list
         logging.info('Filter removed')
 
 

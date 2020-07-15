@@ -12,8 +12,8 @@ class Model:
         self.training_target = config['training_target']
         self._target_dim = config['target_dim']
         self._classifcation = config['classification']
-        self._include_charge = config['include_charge']
         self.net = config['model'] if 'model' in config else ConvNet(self._target_dim, self._classifcation)
+        # self._include_charge = config['include_charge']
         self._device = torch.device(config['device']) if 'device' in config else torch.device('cuda')
         self.model = self.net.to(self._device)
         self._best_model = config['best_model'] if 'best_model' in config else None
@@ -37,11 +37,7 @@ class Model:
 
 
     def evaluate_dataset(self, dataset, batch_size, evaluate_all=True):
-        data_list = build_data_list(
-            dataset.normalized_features,
-            dataset.transformed_truths[self.training_target],
-            self._include_charge
-        )
+        data_list = dataset.data_list
         n_rest = len(data_list) % batch_size
         loader = DataLoader(data_list[:-n_rest], batch_size=batch_size)
         pred, truth = evaluate(self.model, loader, self._device)
