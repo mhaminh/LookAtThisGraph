@@ -15,11 +15,11 @@ class Dataset(object):
 
     """Dataset for training of neural net"""
 
-    def __init__(self, file_list, normalization_parameters=None):
+    def __init__(self, file_list, normalization_parameters=None, logging_level=logging.INFO):
         if type(file_list) != list:
             raise TypeError('Input location has to be a list')
         self.files = [os.path.abspath(f) for f in file_list]
-        logging.basicConfig(format='%(asctime)s: %(message)s', level=logging.INFO)
+        logging.basicConfig(format='%(asctime)s: %(message)s', level=logging_level)
         logging.info('Loading and preprocessing events, this might take a while')
 
         logging.debug('Loading events')
