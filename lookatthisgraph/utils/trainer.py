@@ -25,6 +25,7 @@ class Trainer:
             self.include_charge
         )
         self._target_dim = len(self.data_list[0].y)
+        self._source_dim = self.data_list[0].x.shape[1]
         self.reshuffle()
 
         self._batch_size = config['batch_size']
@@ -40,7 +41,7 @@ class Trainer:
         self._classification = bool(isinstance(self.crit, BCELoss))
 
         self._device = torch.device('cuda') if 'device' not in config else torch.device(config['device'])
-        net = config['net'] if 'net' in config else ConvNet(self._target_dim, self._classification)
+        net = config['net'] if 'net' in config else ConvNet(self._source_dim, self._target_dim, self._classification)
         self.model = net.to(self._device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config['learning_rate'])
         if 'scheduling_step_size' in config and 'scheduling_gamma' in config:
@@ -186,6 +187,7 @@ class Trainer:
             'file_names': self.dataset.files,
             'training_target': self.training_target,
             'include_charge': self.include_charge,
+            'source_dim': self._source_dim,
             'target_dim': self._target_dim,
             'classification': self._classification,
             'n_total': len(self.data_list),
