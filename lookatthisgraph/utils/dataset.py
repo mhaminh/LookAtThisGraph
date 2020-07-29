@@ -105,6 +105,7 @@ class Dataset(object):
 
         return np.array(transformed_truths)
 
+
     def apply_filter(self, filter_mask):
         self.filter = filter_mask
         try:
@@ -124,6 +125,22 @@ class Dataset(object):
         self.filtered_truths = self.transformed_truths
         self.data_list = self._raw_data_list
         logging.info('Filter removed')
+
+
+    def renormalize(self, normalization_parameters):
+        processed_features = self._preprocess_features()
+        self.normalized_features = self._get_normalized_features(processed_features, normalization_parameters)
+
+        self.apply_filter(self.filter)
+
+        self.truth_cols, truth_arr = truths_to_array(self.filtered_truths)
+
+        self._raw_data_list = build_data_list(
+            self.filtered_features,
+            truth_arr,
+        )
+        self.data_list = self._raw_data_list
+        self.apply_filter(self.filter)
 
 
     def write_results(self, result, target_label):
