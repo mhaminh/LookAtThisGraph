@@ -10,10 +10,11 @@ from lookatthisgraph.utils.datautils import build_data_list, evaluate
 class Model:
     def __init__(self, config):
         self.training_target = config['training_target']
+        self.n_features = config['source_dim']
         self._target_dim = config['target_dim']
         self._classifcation = config['classification']
-        self.net = config['model'] if 'model' in config else ConvNet(self._target_dim, self._classifcation)
         # self._include_charge = config['include_charge']
+        self.net = config['model'] if 'model' in config else ConvNet(self.n_features, self._target_dim, self._classifcation)
         self._device = torch.device(config['device']) if 'device' in config else torch.device('cuda')
         self.model = self.net.to(self._device)
         self._best_model = config['best_model'] if 'best_model' in config else None
