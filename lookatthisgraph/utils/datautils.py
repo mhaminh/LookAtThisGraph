@@ -1,6 +1,7 @@
 import logging
 import copy
 import numpy as np
+from scipy.stats import norm
 from tqdm.auto import tqdm
 from joblib import Parallel, delayed
 from copy import deepcopy
@@ -136,6 +137,27 @@ def filter_dict(dictionary, filter_mask):
         dictionary = {key: [item[i] for i in filter_mask] for key, item in dictionary.items()}
 
     return dictionary
+
+
+def get_bands(hist_info):
+    hist, xedges, yedges, _  = hist_info
+    sig_lower = norm.cdf(-1)
+    sig_upper = norm.cdf(1)
+    upper_idx = []
+    lower_idx = []
+    m_idx = []
+    for sl in hist:
+        cdf = np.cumsum(sl)
+        upper_q, lower_q, m = sig_upper*cdf[-1], sig_lower*cdf[-1], .5*cdf[-1]
+        upper_idx.append(np.argmin(np.abs(cdf - upper_q)))
+        lower_idx.append(np.argmin(np.abs(cdf - lower_q)))
+        m_idx.append(np.argmin(np.abs(cdf - m)))
+
+    return yedges[upper_idx], yedges[lower_idx], yedges[m_idx]
+
+
+def bins_from_edges(edges):
+    return (edges[1:] + edges[:-1])/2
 
 
 def truths_to_array(truth_dict):
