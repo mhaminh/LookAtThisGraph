@@ -195,6 +195,13 @@ def load_hits(dir='/home/iwsatlas1/peller/work/oscNext/level7_v01.04/140000_i3co
     return single_hits, params, labels
 
 
+def load_retro(dir):
+    zenith = np.load(os.path.join(dir, 'L7_reconstructed_zenith/data.npy'))
+    energy = np.load(os.path.join(dir, 'L7_reconstructed_total_energy/data.npy'))
+    pid = np.load(os.path.join(dir, 'L7_PIDClassifier_ProbTrack/data.npy'))
+    return zenith, energy, pid
+
+
 def load_events(dir='/home/iwsatlas1/peller/work/oscNext/level7_v01.04/140000_i3cols',
               labels=['x', 'y', 'z', 'time', 'azimuth','zenith', 'cascade_energy', 'track_energy', 'neutrino_energy', 'primary_particle'],
               geo='./resources/geo_array.npy',
