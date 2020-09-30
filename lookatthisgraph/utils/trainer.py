@@ -13,34 +13,45 @@ from lookatthisgraph.nets.ConvNet import ConvNet
 
 
 class Trainer:
+    """
+    Class for training from a Dataset.
+    """
     def __init__(self, config):
         logging.basicConfig(format='%(asctime)s: %(message)s', level=logging.INFO)
         self.dataset = config['dataset']
         self.training_target = config['training_target']
         # self.include_charge = config['include_charge'] if 'include_charge' in config else True
         self.data_list = self.dataset.data_list
+
+        # Define input and output dimensions of network
         self._n_truths = len(self.data_list[0].y)
         self._target_col = self.dataset.truth_cols[self.training_target]
         self._source_dim = self.data_list[0].x.shape[1]
         self._target_dim = len(self._target_col)
         logging.debug('Training using %d features on %d targets', self._source_dim, self._target_dim)
+        # Initial permutation of data
         self.reshuffle()
 
         self._batch_size = config['batch_size']
 
+        # Set configuration of training, validation, and testing samples
         self._train_split = config['train_split'] if 'train_split' in config else None
         self._test_split = config['test_split'] if 'test_split' in config else None
         self._val_split = config['validation_split'] if 'validation_split' in config else 'batch'
 
+        # Setup dataloaders
         self.train_loader, self.val_loader, self.test_loader = self._get_loaders()
 
+        # Setup loss function
         if 'loss_function' not in config:
             self.crit = BCELoss() if self.training_target == 'pid' else MSELoss()
         self._classification = bool(isinstance(self.crit, BCELoss))
 
         self._device = torch.device('cuda') if 'device' not in config else torch.device(config['device'])
+        # Setup model
         net = config['net'] if 'net' in config else ConvNet(self._source_dim, self._target_dim, self._classification)
         self.model = net.to(self._device)
+
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config['learning_rate'])
         if 'scheduling_step_size' in config and 'scheduling_gamma' in config:
             self.scheduler = torch.optim.lr_scheduler.StepLR(
@@ -51,6 +62,7 @@ class Trainer:
             logging.info('No scheduler specified; use constant learning rate')
 
         self._plot = config['plot'] if 'plot' in config else False
+        self._plot_filename = config['plot_filename'] if 'plot_filename' in config else 'training.pdf'
         if self._plot == 'save':
             plt.switch_backend('agg')
 
@@ -62,11 +74,14 @@ class Trainer:
 
         self._fig, self._ax = None, None
 
+
     def reshuffle(self):
+        """Reshuffle current permutation of data"""
         self.permutation = np.random.permutation(len(self.data_list))
 
 
     def _get_loaders(self):
+        """Calculates number of samples per loader and sets up dataloader"""
         split = lambda s: int(self.dataset.n_events * s) if s < 1 else int(s)
 
         if self._val_split == 'batch':
@@ -101,6 +116,7 @@ class Trainer:
 
 
     def train(self):
+        """Start training model"""
         import matplotlib.pyplot as plt
         self._time_start = str(datetime.utcnow())
         self._train_perm = deepcopy(self.permutation)
@@ -114,7 +130,7 @@ class Trainer:
         for epoch in epoch_bar:
 
             self._train_epoch()
-            self.state_dicts.append(self.model.state_dict())
+            self.state_dicts.append(deepcopy(self.model.state_dict()))
             self._val_epoch()
 
             epoch_bar.set_description("Train: %.2e, val: %.2e" % (self.train_losses[-1], self.validation_losses[-1]))
@@ -170,6 +186,7 @@ class Trainer:
 
 
     def evaluate_test_samples(self):
+        """Load best model and evaluate all test samples"""
         self.load_best_model()
         pred = evaluate(self.model, self.test_loader, self._device)
         pred = np.squeeze(pred.reshape(-1, self._target_dim))
@@ -180,6 +197,7 @@ class Trainer:
 
 
     def save_network_info(self, location):
+        """Save training info to pickle file"""
         training_info = {
             'file_names': self.dataset.files,
             'training_target': self.training_target,
@@ -234,4 +252,4 @@ class Trainer:
         self._fig.canvas.draw()
         plt.pause(0.05)
         if self._plot == 'save':
-            plt.savefig('training.pdf')
+            plt.savefig(self._plot_filename)
