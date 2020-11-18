@@ -229,3 +229,40 @@ class Dataset(object):
 
     def write_results(self, result, target_label):
         self.results[target_label] = np.array(result).flatten()
+
+
+class DatasetFromHDF5(Dataset):
+    def __init__(self, file_list, normalization_parameters=None, logging_level=logging.INFO, n_jobs=1):
+        self.n_jobs = n_jobs
+        super().__init__(file_list, normalization_parameters=None, logging_level=logging.INFO)
+
+
+    def _load_inputs(self):
+        logging.warning('PID INFORMATION USELESS, DO NOT USE! \n If PID is necessary, use standard Dataset')
+        labels = ['azimuth', 'zenith', 'energy']
+        # file_inputs = [get_pulses(f, labels=labels) for f in tqdm(self.files)]
+        file_inputs = Parallel(n_jobs=self.n_jobs)(delayed(get_pulses)(f, labels=labels) for f in tqdm(self.files))
+        print(file_inputs)
+        pulses, raw_truths = map(list, zip(*file_inputs))
+        pulses = flatten(pulses)
+        raw_truths = flatten(raw_truths)
+
+        dom_positions = get_dom_positions()
+        hit_doms = [dom_positions[event[:,0].astype(int)] for event in pulses]
+        raw_pulses = [np.concatenate((
+            doms, # xyz
+            event[:,1].reshape(-1,1), # Time
+            event[:,2].reshape(-1,1), # charge
+                                   ), axis=1)
+                    for event, doms in zip(pulses, hit_doms)]
+
+        # Fake PID
+        n_events = len(raw_truths)
+        fake_pid = np.zeros(n_events).reshape(-1, 1)
+        raw_truths = np.concatenate((np.array(raw_truths), fake_pid), axis=1)
+        labels.append('track_energy')
+
+        labels[labels.index('energy')] = 'neutrino_energy'
+
+        input_dict = {label: idx for idx, label in enumerate(labels)}
+        return raw_pulses, raw_truths, input_dict
