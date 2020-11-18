@@ -6,7 +6,7 @@ from tqdm.auto import tqdm
 from joblib import Parallel, delayed
 from copy import deepcopy
 import torch
-from torch_geometric.data import Data
+from torch_geometric.data import Data, DataLoader
 from lookatthisgraph.utils.icecubeutils import get_dom_positions
 
 
@@ -108,6 +108,20 @@ def evaluate(model, loader, device):
         model.eval()
         pred = [torch_to_numpy(model(batch.to(device))) for batch in tqdm(loader)]
     return np.array(pred)
+
+
+def evaluate_all(model, loader, device):
+    data_list = loader.dataset
+    batch_size = loader.batch_size
+    n_rest = len(data_list) % batch_size
+    loader = DataLoader(data_list[:-n_rest], batch_size=batch_size)
+    pred = evaluate(model, loader, device)
+    if n_rest != 0:
+        rest_loader = DataLoader(data_list[-n_rest:], batch_size=n_rest)
+        pred_rest = evaluate(model, rest_loader, device)
+        out_shape = model.n_labels
+        pred = np.concatenate([pred.reshape(-1, out_shape), pred_rest.reshape(-1, out_shape)])
+    return pred
 
 
 
