@@ -11,18 +11,21 @@ class PulseNormalizer:
     ----------
     events: list
         List with arrays of pulse information
+    get_parameters: bool
+        Determines if normalization parameters should be calculated when initializing
     norm_cols: list
         Indices of columns to normalize
     '''
-    def __init__(self, events, norm_cols=None, eps=None):
+    def __init__(self, events, get_parameters=False, norm_cols=None, eps=None):
         self._events = events
         self._norm_cols = norm_cols if norm_cols else list(range(events[0].shape[1]))
 
         self.mode = None
-        logging.debug('Getting normalization parameters')
-        self._linear_parameters = self._get_linear_parameters()
-        self._norm_parameters = self._get_norm_parameters()
-        logging.debug('Finished calculating normalization parameters')
+        if get_parameters:
+            logging.debug('Getting normalization parameters')
+            self._linear_parameters = self._get_linear_parameters()
+            self._norm_parameters = self._get_norm_parameters()
+            logging.debug('Finished calculating normalization parameters')
 
         self.eps = eps # Tuple with column and eps to filter out
 
@@ -60,6 +63,7 @@ class PulseNormalizer:
         else:
             raise ValueError('Option not recognized')
 
+
     def _get_normalized_event(self, event):
         new_event = np.copy(event)
         features = new_event[:, self._norm_cols]
@@ -68,14 +72,15 @@ class PulseNormalizer:
         return new_event
 
 
+    # TODO: rethink this block
     def normalize(self, mode, parameters=None):
         if parameters is not None:
             self._linear_parameters = parameters if mode=='minmax' else self._linear_parameters
             self._norm_parameters = parameters if mode=='gauss' else self._norm_parameters
             logging.info('Normalization parameters received, overwriting existing parameters')
         else:
-            self._linear_parameters = self._get_linear_parameters() if mode=='minmax' else self._linear_parameters
-            self._norm_parameters = self._get_norm_parameters() if mode=='gauss' else self._norm_parameters
+            self._linear_parameters = self._get_linear_parameters() if (mode=='minmax' and self._linear_parameters is None) else self._linear_parameters
+            self._norm_parameters = self._get_norm_parameters() if (mode=='gauss' and self._norm_parameters is None) else self._norm_parameters
 
         self.mode = mode
         nn = [self._get_normalized_event(event) for event in self._events]

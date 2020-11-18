@@ -77,8 +77,9 @@ class Dataset(object):
         labels = ['zenith', 'energy', 'pid', 'dir_cart']
         self.transformed_truths = {label: self._transform_truths(label) for label in labels}
 
-        logging.debug('Start normalizing pulses')
+        logging.debug('Preprocessing features')
         processed_features = self._preprocess_features()
+        logging.debug('Start normalizing pulses')
         self.normalized_features = self._get_normalized_features(processed_features, normalization_parameters)
         logging.info('Data processing complete')
 
@@ -136,7 +137,7 @@ class Dataset(object):
         features_normalized: list of arrays
             Normalized features
         """
-        pn = PulseNormalizer(features)
+        pn = PulseNormalizer(features, get_parameters=True)
         features_normalized = pn.normalize('gauss', normalization_parameters)
         self.normalization_parameters = pn.get_normalization_parameters()
         return features_normalized
