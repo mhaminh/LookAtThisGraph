@@ -19,6 +19,8 @@ class PulseNormalizer:
     def __init__(self, events, get_parameters=False, norm_cols=None, eps=None):
         self._events = events
         self._norm_cols = norm_cols if norm_cols else list(range(events[0].shape[1]))
+        self._linear_parameters = None
+        self._norm_parameters = None
 
         self.mode = None
         if get_parameters:
