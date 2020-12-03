@@ -25,6 +25,45 @@ def convert_to_pisa(outfile, sim_info, dataset_nue, dataset_numu, dataset_nutau,
     logging.info('Dataset successfully converted and saved')
 
 
+def convert_to_pisa_muons(outfile, dataset, n_jobs=1):
+    keys = get_keys_muons(dataset, n_jobs)
+    with h5py.File(outfile, 'w') as f:
+        for key, item in keys.items():
+            f.create_dataset('muon/'+ str(key), data=item)
+    logging.info('Dataset successfully converted and saved')
+
+
+def get_keys_muons(dataset, n_jobs):
+
+    def load_from_files(fname):
+        f = h5py.File(fname, 'r')
+        try:
+            weights = f['I3MCWeightDict']['weight'][()]
+            muon_classifier = f['L7_MuonClassifier_ProbNu']['value']
+            coincident_muon = f['L7_CoincidentMuon_bool']['value']
+        except KeyError:
+            weights, muon_classifier, coincident_muon = np.array([]), np.array([]), np.array([])
+
+        return weights, muon_classifier, coincident_muon
+
+    finps = Parallel(n_jobs)(delayed(load_from_files)(fname) for fname in tqdm(dataset.files, desc='Loading keys'))
+    weights, muon_classifier, coincident_muon = map(np.concatenate, zip(*finps))
+
+    raw_truths = np.array(dataset.raw_truths)
+    zenith = reconvert_zenith(np.reshape(dataset.results['zenith'], (-1, 2)))
+    keys = {
+        'MCInIcePrimary.dir.coszen' : np.cos(raw_truths[:, dataset.input_dict['zenith']]),
+        'I3MCWeightDict.weight': weights,
+        'L7_reconstructed_coszen': np.cos(zenith),
+        'L7_reconstructed_total_energy': 10**dataset.results['energy'],
+        'L7_PIDClassifier_ProbTrack': dataset.results['pid'],
+        'L7_MuonClassifier_ProbNu': muon_classifier,
+        'L7_CoincidentMuon_bool': coincident_muon,
+        }
+    nvals = [len(item) for item in keys.values()]
+    return keys
+
+
 def get_keys(dataset, sim_info, flavor, with_weighted_aeff, convert_results):
     keys = load_keys(dataset.files[0])
     if len(dataset.files) > 1:
