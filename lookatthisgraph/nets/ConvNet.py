@@ -7,9 +7,12 @@ from torch.nn import BatchNorm1d, PReLU
 import torch_geometric.nn as NN
 
 class ConvNet(torch.nn.Module):
-    def __init__(self, n_features, n_labels, classification=False):
+    def __init__(self, n_features, n_labels, classification=False, normalize=False):
         super(ConvNet, self).__init__()
         self.classification = classification
+        self._normalize = normalize
+        if normalize == True and classification == True:
+            print("Warning: \'normalize\' not defined for \'classfication\', will be ignored")
         self.n_features = n_features
         self.n_labels = n_labels
         n_intermediate = 128
@@ -60,6 +63,11 @@ class ConvNet(torch.nn.Module):
         x = self.out(x)
         if self.classification:
             x = torch.sigmoid(x)
+        elif self._normalize:
+            x = x.view(-1, self.n_labels)
+            norm = torch.norm(x, dim=1).view(-1, 1)
+            x = x / norm
+
         x = x.view(-1)
 
         return x
