@@ -173,6 +173,8 @@ class Trainer:
             loss_all += float(data.num_graphs * (loss.item()))
             self.optimizer.step()
 
+        if np.isnan(loss_all):
+            loss_all = float('inf')
         self.train_losses.append(loss_all / len(self.train_loader.dataset))
 
 
@@ -182,6 +184,8 @@ class Trainer:
             for val_batch in self.val_loader:
                 val_loss = self._evaluate_loss(val_batch)
                 val_loss_all += float(val_batch.num_graphs * (val_loss.item()))
+        if np.isnan(val_loss_all):
+            val_loss_all = float('inf')
         self.validation_losses.append(val_loss_all / len(self.val_loader.dataset))
 
 
