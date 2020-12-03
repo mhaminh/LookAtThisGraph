@@ -153,21 +153,30 @@ def filter_dict(dictionary, filter_mask):
     return dictionary
 
 
-def get_bands(hist_info):
-    hist, xedges, yedges, _  = hist_info
-    sig_lower = norm.cdf(-1)
-    sig_upper = norm.cdf(1)
-    upper_idx = []
-    lower_idx = []
-    m_idx = []
+def get_bands(hist_info, quantiles = [norm.cdf(-1), norm.cdf(1)]):
+    hist = hist_info[0]
+    xedges = hist_info[1]
+    yedges = hist_info[2]
+#     sig_lower = norm.cdf(-1)
+#     sig_upper = norm.cdf(1)
+#     upper_idx = []
+#     lower_idx = []
+#     m_idx = []
+    idc = [[] for _, _ in enumerate(quantiles)]
     for sl in hist:
         cdf = np.cumsum(sl)
-        upper_q, lower_q, m = sig_upper*cdf[-1], sig_lower*cdf[-1], .5*cdf[-1]
-        upper_idx.append(np.argmin(np.abs(cdf - upper_q)))
-        lower_idx.append(np.argmin(np.abs(cdf - lower_q)))
-        m_idx.append(np.argmin(np.abs(cdf - m)))
+        for i, q in enumerate(quantiles):
+            threshold = q * cdf[-1]
+            idc[i].append(np.argmin(np.abs(cdf - threshold)))
 
-    return yedges[upper_idx], yedges[lower_idx], yedges[m_idx]
+#         upper_q, lower_q, m = sig_upper*cdf[-1], sig_lower*cdf[-1], .5*cdf[-1]
+#         upper_idx.append(np.argmin(np.abs(cdf - upper_q)))
+#         lower_idx.append(np.argmin(np.abs(cdf - lower_q)))
+#         m_idx.append(np.argmin(np.abs(cdf - m)))
+
+#    return yedges[upper_idx], yedges[lower_idx], yedges[m_idx]
+    bands = [yedges[idx] for idx in idc]
+    return bands
 
 
 def bins_from_edges(edges):
