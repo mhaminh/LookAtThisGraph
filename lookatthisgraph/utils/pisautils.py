@@ -2,14 +2,17 @@ import os
 import logging
 import h5py
 import numpy as np
+from tqdm.auto import tqdm
 from lookatthisgraph.utils.datautils import filter_dict
+from lookatthisgraph.utils.datautils import reconvert_zenith
 from copy import deepcopy
+from joblib import Parallel, delayed
 
 
-def convert_to_pisa(outfile, sim_info, dataset_nue, dataset_numu, dataset_nutau, with_weighted_aeff=True):
+def convert_to_pisa(outfile, sim_info, dataset_nue, dataset_numu, dataset_nutau, with_weighted_aeff=True, convert_results=True):
     with h5py.File(outfile, 'w') as f:
         for dset, flavor in zip([dataset_nue, dataset_numu, dataset_nutau], ['nue', 'numu', 'nutau']):
-            nu_cc, nu_nc, nubar_cc, nubar_nc = get_keys(dset, sim_info, flavor, calculate_weighted_aeff)
+            nu_cc, nu_nc, nubar_cc, nubar_nc = get_keys(dset, sim_info, flavor, with_weighted_aeff, convert_results)
             for key, item in nu_cc.items():
                 f.create_dataset(flavor + '_cc/' + key, data=item)
             for key, item in nu_nc.items():
@@ -22,7 +25,7 @@ def convert_to_pisa(outfile, sim_info, dataset_nue, dataset_numu, dataset_nutau,
     logging.info('Dataset successfully converted and saved')
 
 
-def get_keys(dataset, sim_info, flavor, with_weighted_aeff):
+def get_keys(dataset, sim_info, flavor, with_weighted_aeff, convert_results):
     keys = load_keys(dataset.files[0])
     if len(dataset.files) > 1:
         logging.warning('Warning: Multiple input paths found in dataset, using first to extract simulation keys')
@@ -40,9 +43,13 @@ def get_keys(dataset, sim_info, flavor, with_weighted_aeff):
             dataset.n_files
         )
 
-    keys['L7_reconstructed_coszen'] = np.cos(dataset.results['zenith'])
-    keys['L7_reconstructed_total_energy'] = 10**dataset.results['energy']
+    keys['L7_reconstructed_coszen'] = dataset.results['zenith']
+    keys['L7_reconstructed_total_energy'] = dataset.results['energy']
     keys['L7_PIDClassifier_ProbTrack'] = dataset.results['pid']
+
+    if convert_results:
+        keys['L7_reconstructed_coszen'] = np.cos(keys['L7_reconstructed_coszen'])
+        keys['L7_PIDClassifier_ProbTrack'] = keys['L7_PIDClassifier_ProbTrack']
 
     # Split in CC / NC
     CC_mask = keys['I3MCWeightDict.InteractionType'] == 1
