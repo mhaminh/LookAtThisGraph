@@ -16,18 +16,20 @@ class Trainer:
     """
     Class for training from a Dataset.
     """
+
+
     def __init__(self, config):
         logging.basicConfig(format='%(asctime)s: %(message)s', level=logging.INFO)
         self.dataset = config['dataset']
-        self.training_target = config['training_target']
-        # self.include_charge = config['include_charge'] if 'include_charge' in config else True
+        self._classification = config['classification'] if 'classification' in config else False
         self.data_list = self.dataset.data_list
 
-        # Define input and output dimensions of network
-        self._n_truths = len(self.data_list[0].y)
-        self._target_col = self.dataset.truth_cols[self.training_target]
-        self._source_dim = self.data_list[0].x.shape[1]
-        self._target_dim = len(self._target_col)
+        self._setup_network_info(config['training_target'], config['loss_function'])
+        if not (isinstance(self.crit, BCELoss)) and self._classification:
+            logging.warning('Classification specified; did you provide the correct loss function? (BCELoss recommended)')
+        elif (isinstance(self.crit, BCELoss)) and not self._classification:
+            logging.warning('You provided a loss function for classifcation, but did not specify classification in config, are you sure?')
+
         logging.debug('Training using %d features on %d targets', self._source_dim, self._target_dim)
         # Initial permutation of data
         self.reshuffle()
@@ -41,11 +43,6 @@ class Trainer:
 
         # Setup dataloaders
         self.train_loader, self.val_loader, self.test_loader = self._get_loaders()
-
-        # Setup loss function
-        if 'loss_function' not in config:
-            self.crit = BCELoss() if self.training_target == 'pid' else MSELoss()
-        self._classification = bool(isinstance(self.crit, BCELoss))
 
         self._device = torch.device('cuda') if 'device' not in config else torch.device(config['device'])
         # Setup model
@@ -78,6 +75,16 @@ class Trainer:
     def reshuffle(self):
         """Reshuffle current permutation of data"""
         self.permutation = np.random.permutation(len(self.data_list))
+
+
+    def _setup_network_info(self, training_targets, loss_function):
+        """Setup dimensions, loss function etc. of network"""
+        self.training_target = training_targets
+        self._n_truths = len(self.data_list[0].y)
+        self._target_col = [self.dataset.truth_cols[label] for label in self.training_target]
+        self._source_dim = self.data_list[0].x.shape[1]
+        self._target_dim = len(self._target_col)
+        self.crit = loss_function
 
 
     def _get_loaders(self):
