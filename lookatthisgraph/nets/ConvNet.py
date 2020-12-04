@@ -7,7 +7,24 @@ from torch.nn import BatchNorm1d, PReLU
 import torch_geometric.nn as NN
 
 class ConvNet(torch.nn.Module):
-    def __init__(self, n_features, n_labels, classification=False, normalize=False):
+    def __init__(self, n_features, n_labels, knn_cols, classification=False, normalize=False):
+        """
+        Standard network architecture
+
+        Parameters:
+        ----------
+        n_features: int
+            Number of input features, i.e. dimension of input layer
+        n_labels: int
+            Number of prediction labels, i.e. dimension of output layer
+        knn_cols: arr
+            Column indices of features to be used for k-nearest-neighbor edge calculation
+            Usually x, y, z, t
+        classification: bool
+            Switches to classification loss
+        normalize: bool
+            Whether to normalize ouput (e.g. for prediction of vector on unit sphere)
+        """
         super(ConvNet, self).__init__()
         self.classification = classification
         self._normalize = normalize
