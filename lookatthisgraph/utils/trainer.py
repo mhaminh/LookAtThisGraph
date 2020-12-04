@@ -46,7 +46,7 @@ class Trainer:
 
         self._device = torch.device('cuda') if 'device' not in config else torch.device(config['device'])
         # Setup model
-        net = config['net'] if 'net' in config else ConvNet(self._source_dim, self._target_dim, self._classification)
+        net = config['net'] if 'net' in config else ConvNet(self._source_dim, self._target_dim, self._knn_cols, self._classification)
         self.model = net.to(self._device)
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config['learning_rate'])
@@ -84,6 +84,8 @@ class Trainer:
         self._target_col = [self.dataset.truth_cols[label] for label in self.training_target]
         self._source_dim = self.data_list[0].x.shape[1]
         self._target_dim = len(self._target_col)
+        # TODO: make more sophisticated, maybe in combination with feature label argument
+        self._knn_cols = [0, 1, 2, 3, 4]
         self.crit = loss_function
 
 

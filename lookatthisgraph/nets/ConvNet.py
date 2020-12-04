@@ -11,6 +11,7 @@ class ConvNet(torch.nn.Module):
         super(ConvNet, self).__init__()
         self.classification = classification
         self._normalize = normalize
+        self._knn_cols = knn_cols
         if normalize == True and classification == True:
             print("Warning: \'normalize\' not defined for \'classfication\', will be ignored")
         self.n_features = n_features
@@ -34,7 +35,7 @@ class ConvNet(torch.nn.Module):
 
     def forward(self, data):
         x, batch = data.x, data.batch
-        edge_index = knn_graph(x, 100, batch)
+        edge_index = knn_graph(x[:, self._knn_cols], 80, batch)
         edge_index, _ = dropout_adj(edge_index, p=0.3)
         batch = data.batch
 
