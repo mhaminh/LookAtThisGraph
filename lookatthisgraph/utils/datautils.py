@@ -103,22 +103,28 @@ def build_data_list(normalized_features, y_transformed, include_charge=True, cha
     return data_list
 
 
-def evaluate(model, loader, device):
+def evaluate(model, loader, device, mode, pbar=True):
     with torch.no_grad():
-        model.eval()
-        pred = [torch_to_numpy(model(batch.to(device))) for batch in tqdm(loader)]
+        if mode == 'eval':
+            model.eval()
+        elif mode == 'train':
+            model.train()
+        if pbar:
+            pred = [torch_to_numpy(model(batch.to(device))) for batch in tqdm(loader)]
+        else:
+            pred = [torch_to_numpy(model(batch.to(device))) for batch in (loader)]
     return np.array(pred)
 
 
-def evaluate_all(model, loader, device):
+def evaluate_all(model, loader, device, mode='eval'):
     data_list = loader.dataset
     batch_size = loader.batch_size
     n_rest = len(data_list) % batch_size
     loader = DataLoader(data_list[:-n_rest], batch_size=batch_size)
-    pred = evaluate(model, loader, device)
+    pred = evaluate(model, loader, device, mode)
     if n_rest != 0:
         rest_loader = DataLoader(data_list[-n_rest:], batch_size=n_rest)
-        pred_rest = evaluate(model, rest_loader, device)
+        pred_rest = evaluate(model, rest_loader, device, mode, False)
         out_shape = model.n_labels
         pred = np.concatenate([pred.reshape(-1, out_shape), pred_rest.reshape(-1, out_shape)])
     return pred

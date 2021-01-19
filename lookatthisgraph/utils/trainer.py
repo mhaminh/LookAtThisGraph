@@ -8,16 +8,14 @@ from tqdm.auto import tqdm
 from copy import deepcopy
 from torch_geometric.data import DataLoader
 from torch.nn import MSELoss, BCELoss
-from lookatthisgraph.utils.datautils import build_data_list, evaluate
 from lookatthisgraph.nets.ConvNet import ConvNet
+from lookatthisgraph.utils.datautils import build_data_list, evaluate_all
 
 
 class Trainer:
     """
     Class for training from a Dataset.
     """
-
-
     def __init__(self, config):
         logging.basicConfig(format='%(asctime)s: %(message)s', level=logging.INFO)
         self.dataset = config['dataset']
@@ -201,10 +199,9 @@ class Trainer:
     def evaluate_test_samples(self):
         """Load best model and evaluate all test samples"""
         self.load_best_model()
-        pred = evaluate(self.model, self.test_loader, self._device)
+        pred = evaluate_all(self.model, self.test_loader, self._device)
         pred = np.squeeze(pred.reshape(-1, self._target_dim))
         truth = np.array([np.array(d.y) for d in self.test_loader.dataset])[:len(pred)]
-        print(truth)
         truth = {key: truth[:, cols] for key, cols in self.dataset.truth_cols.items()}
         return pred, truth
 
