@@ -22,6 +22,7 @@ class Trainer:
         self._classification = config['classification'] if 'classification' in config else False
         self._normalize_output = config['normalize_output'] if 'normalize_output' in config else False
         self.data_list = self.dataset.data_list
+        self._autosave_path = config['autosave_path'] if 'autosave_path' in config else None
 
         self._setup_network_info(config)
         if not (isinstance(self.crit, BCELoss)) and self._classification:
@@ -88,6 +89,14 @@ class Trainer:
         self.crit = config['loss_function']
 
 
+    def get_new_loaders(self, train_split, val_split, test_split):
+        """Make new dataloaders with supplied split ratios"""
+        self._train_split = train_split
+        self._val_split = val_split
+        self._test_split = test_split
+        self.train_loader, self.val_loader, self.test_loader = self._get_loaders()
+
+
     def _get_loaders(self):
         """Calculates number of samples per loader and sets up dataloader"""
         split = lambda s: int(self.dataset.n_events * s) if s < 1 else int(s)
@@ -116,6 +125,10 @@ class Trainer:
 
         dataset_shuffled = [self.data_list[i] for i in self.permutation]
 
+        self.train_idx = self.permutation[:n_train]
+        self.val_idx = self.permutation[n_train:][:n_val]
+        self.test_idx = self.permutation[n_train:][n_val:]
+
         train_loader = DataLoader(dataset_shuffled[:n_train], self._batch_size, drop_last=True, shuffle=True)
         val_loader = DataLoader(dataset_shuffled[n_train:n_train+n_val], self._batch_size, drop_last=True)
         test_loader = DataLoader(dataset_shuffled[n_train+n_val:][:n_test], self._batch_size, drop_last=True)
@@ -129,7 +142,7 @@ class Trainer:
         self._time_start = str(datetime.utcnow())
         self._train_perm = deepcopy(self.permutation)
         self.model.train()
-        epoch_bar = tqdm(range(self._max_epochs))
+        epoch_bar = tqdm(range(self._max_epochs), desc="Epochs")
         last_lr = float('inf')
 
         if self._plot != False :
@@ -145,8 +158,8 @@ class Trainer:
             if self._plot:
                 self._plot_training()
             try:
-                if self.scheduler.get_lr()[0] != last_lr:
-                    last_lr = self.scheduler.get_lr()[0]
+                if self.scheduler.get_last_lr()[0] != last_lr:
+                    last_lr = self.scheduler.get_last_lr()[0]
                     logging.info('Learning rate changed to %f in epoch %d', last_lr, epoch)
 
                 self.scheduler.step()
@@ -154,6 +167,9 @@ class Trainer:
                 pass
             logging.info("Training loss:%10.3e | Validation loss:%10.3e | Epoch %d / %d | Min validation loss:%10.3e at epoch %d",
                          self.train_losses[-1], self.validation_losses[-1], epoch, self._max_epochs, np.min(self.validation_losses), np.argmin(self.validation_losses))
+
+            if self._autosave_path is not None:
+                self.save_network_info(self._autosave_path)
 
         self._time_end = str(datetime.utcnow())
 
@@ -174,7 +190,7 @@ class Trainer:
 
     def _train_epoch(self):
         loss_all = 0
-        for data in self.train_loader:
+        for data in tqdm(self.train_loader):
             self.optimizer.zero_grad()
             loss = self._evaluate_loss(data)
             loss.backward()
@@ -212,7 +228,6 @@ class Trainer:
         training_info = {
             'file_names': self.dataset.files,
             'training_target': self.training_target,
-            # 'include_charge': self.include_charge,
             'source_dim': self._source_dim,
             'target_dim': self._target_dim,
             'classification': self._classification,
@@ -233,6 +248,7 @@ class Trainer:
             'time_training_start': self._time_start,
             'permutation': self._train_perm,
             'best_model': self.state_dicts[np.argmin(self.validation_losses)],
+            'normalize_output': self.normalize_output,
         }
         try:
             training_info['time_training_end'] = self._time_end
@@ -246,7 +262,7 @@ class Trainer:
         pickle.dump(training_info, open(location, 'wb'))
         logging.info('Network dictionary saved')
 
-        return training_info
+        # return training_info
 
 
     def _setup_plot(self):
