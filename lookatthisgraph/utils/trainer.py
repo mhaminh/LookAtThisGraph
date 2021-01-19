@@ -22,7 +22,7 @@ class Trainer:
         self._classification = config['classification'] if 'classification' in config else False
         self.data_list = self.dataset.data_list
 
-        self._setup_network_info(config['training_target'], config['loss_function'])
+        self._setup_network_info(config)
         if not (isinstance(self.crit, BCELoss)) and self._classification:
             logging.warning('Classification specified; did you provide the correct loss function? (BCELoss recommended)')
         elif (isinstance(self.crit, BCELoss)) and not self._classification:
@@ -75,16 +75,16 @@ class Trainer:
         self.permutation = np.random.permutation(len(self.data_list))
 
 
-    def _setup_network_info(self, training_targets, loss_function):
+    def _setup_network_info(self, config):
         """Setup dimensions, loss function etc. of network"""
-        self.training_target = training_targets
+        self.training_target = config['training_target']
         self._n_truths = len(self.data_list[0].y)
         self._target_col = [self.dataset.truth_cols[label] for label in self.training_target]
         self._source_dim = self.data_list[0].x.shape[1]
         self._target_dim = len(self._target_col)
         # TODO: make more sophisticated, maybe in combination with feature label argument
-        self._knn_cols = [0, 1, 2, 3, 4]
-        self.crit = loss_function
+        self._knn_cols = [0, 1, 2, 3]
+        self.crit = config['loss_function']
 
 
     def _get_loaders(self):
