@@ -7,7 +7,7 @@ from torch.nn import BatchNorm1d, PReLU
 import torch_geometric.nn as NN
 
 class ConvNet(torch.nn.Module):
-    def __init__(self, n_features, n_labels, knn_cols, classification=False, normalize=False):
+    def __init__(self, n_features, n_labels, knn_cols, classification=False, normalize=False, final_activation=None):
         """
         Standard network architecture
 
@@ -48,6 +48,7 @@ class ConvNet(torch.nn.Module):
         self.drop = torch.nn.Dropout(.3)
         self.out = torch.nn.Linear(n_intermediate2, self.n_labels)
         self.out2 = torch.nn.Linear(self.n_labels, self.n_labels)
+        self.final_activation = final_activation
 
 
     def forward(self, data):
@@ -85,7 +86,9 @@ class ConvNet(torch.nn.Module):
             x = x.view(-1, self.n_labels)
             norm = torch.norm(x, dim=1).view(-1, 1)
             x = x / norm
+        elif self.final_activation is not None:
+            x = self.final_activation(x)
 
-        x = x.view(-1)
+        x = x.view(-1, self.n_labels)
 
         return x

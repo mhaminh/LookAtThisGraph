@@ -20,6 +20,7 @@ class Trainer:
         logging.basicConfig(format='%(asctime)s: %(message)s', level=logging.INFO)
         self.dataset = config['dataset']
         self._classification = config['classification'] if 'classification' in config else False
+        self._normalize_output = config['normalize_output'] if 'normalize_output' in config else False
         self.data_list = self.dataset.data_list
 
         self._setup_network_info(config)
@@ -44,7 +45,7 @@ class Trainer:
 
         self._device = torch.device('cuda') if 'device' not in config else torch.device(config['device'])
         # Setup model
-        net = config['net'] if 'net' in config else ConvNet(self._source_dim, self._target_dim, self._knn_cols, self._classification)
+        net = config['net'] if 'net' in config else ConvNet(self._source_dim, self._target_dim, self._knn_cols, self._classification, self._normalize_output)
         self.model = net.to(self._device)
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config['learning_rate'])
@@ -165,7 +166,7 @@ class Trainer:
     def _evaluate_loss(self, data):
         data = data.to(self._device)
         output = self.model(data)
-        y = data.y.view(-1, self._n_truths)[:, self._target_col].flatten()
+        y = data.y.view(-1, self._n_truths)[:, self._target_col]
         label = y.to(self._device)
         loss = self.crit(output, label)
         return loss
