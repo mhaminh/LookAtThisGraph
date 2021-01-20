@@ -45,9 +45,13 @@ class ConvNet(torch.nn.Module):
         self.linear3 = torch.nn.Linear(n_intermediate2, n_intermediate2)
         self.linear4 = torch.nn.Linear(n_intermediate2, n_intermediate2)
         self.linear5 = torch.nn.Linear(n_intermediate2, n_intermediate2)
-        self.drop = torch.nn.Dropout(.3)
+        dropout_ratio = .3
+        self.drop1 = torch.nn.Dropout(.3)
+        self.drop2 = torch.nn.Dropout(.3)
+        self.drop3 = torch.nn.Dropout(.3)
+        self.drop4 = torch.nn.Dropout(.3)
+        self.drop5 = torch.nn.Dropout(.3)
         self.out = torch.nn.Linear(n_intermediate2, self.n_labels)
-        self.out2 = torch.nn.Linear(self.n_labels, self.n_labels)
         self.final_activation = final_activation
 
 
@@ -68,16 +72,19 @@ class ConvNet(torch.nn.Module):
 
         x = torch.cat([x1, x2, x3], dim=1)
 
-
         x = self.batchnorm1(x)
 
         x = F.leaky_relu(self.linear1(x))
 
-        x = self.drop(x)
+        x = self.drop1(x)
         x = F.leaky_relu(self.linear2(x))
+        x = self.drop2(x)
         x = F.leaky_relu(self.linear3(x))
+        x = self.drop3(x)
         x = F.leaky_relu(self.linear4(x))
+        x = self.drop4(x)
         x = F.leaky_relu(self.linear5(x))
+        x = self.drop5(x)
 
         x = self.out(x)
         if self.classification:
