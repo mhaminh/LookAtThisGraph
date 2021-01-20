@@ -4,7 +4,8 @@ from torch_geometric.data import DataLoader
 import logging
 from copy import deepcopy
 from lookatthisgraph.nets.ConvNet import ConvNet
-from lookatthisgraph.utils.datautils import build_data_list, evaluate
+from lookatthisgraph.utils.dataset import Dataset
+from lookatthisgraph.utils.datautils import build_data_list, evaluate_all
 
 
 class Model:
@@ -39,23 +40,16 @@ class Model:
         self.load_best_model() if self._best_model is not None else 0
 
 
-    # TODO: use evaluate_all method, don't return truths
-    def evaluate_dataset(self, dataset, batch_size, evaluate_all=True):
-        data_list = dataset.data_list
-        n_rest = len(data_list) % batch_size
-        if len(data_list) >= batch_size:
-            loader = DataLoader(data_list[:-n_rest], batch_size=batch_size)
-            pred = evaluate(self.model, loader, self._device, mode='eval')
-            pred = (pred.reshape(-1, self._target_dim))
+    def evaluate_dataset(self, data, batch_size):
+        """
+        Evaluate all data in dataset or data list
+
+        # data_list = dataset.data_list
+        if isinstance(data, Dataset):
+            data_list = data.data_list
         else:
-            pred = np.empty((0, self._target_dim))
-
-        if evaluate_all:
-            rest_loader = DataLoader(data_list[-n_rest:], batch_size=n_rest)
-            pred_rest = evaluate(self.model, rest_loader, self._device, mode='eval', pbar=False)
-            pred_rest = pred_rest.reshape(-1, self._target_dim)
-
-            pred = np.concatenate([pred, pred_rest])
-        truth = np.array([np.array(d.y) for d in data_list])[:len(pred)]
-        truth = {key: truth[:, cols] for key, cols in dataset.truth_cols.items()}
-        return pred, truth
+            data_list = data
+        loader = DataLoader(data_list, batch_size=batch_size)
+        pred = evaluate_all(self._model, loader, self._device)
+        pred = np.squeeze(pred.reshape(-1, self._target_dim))
+        return pred
