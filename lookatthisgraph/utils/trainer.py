@@ -60,8 +60,6 @@ class Trainer:
 
         self._plot = config['plot'] if 'plot' in config else False
         self._plot_filename = config['plot_filename'] if 'plot_filename' in config else 'training.pdf'
-        if self._plot == 'save':
-            plt.switch_backend('agg')
 
         self.train_losses = []
         self.validation_losses = []
@@ -138,18 +136,16 @@ class Trainer:
 
     def train(self):
         """Start training model"""
-        import matplotlib.pyplot as plt
         self._time_start = str(datetime.utcnow())
         self._train_perm = deepcopy(self.permutation)
         self.model.train()
         epoch_bar = tqdm(range(self._max_epochs), desc="Epochs")
         last_lr = float('inf')
 
-        if self._plot != False :
+        if self._plot:
             self._setup_plot()
 
         for epoch in epoch_bar:
-
             self._train_epoch()
             self.state_dicts.append(deepcopy(self.model.state_dict()))
             self._val_epoch()
@@ -266,13 +262,22 @@ class Trainer:
 
 
     def _setup_plot(self):
+        import matplotlib
+        plot_backend = matplotlib.get_backend()
+        if self._plot=='save':
+            matplotlib.use('agg')
         self._fig = plt.figure()
         self._ax = self._fig.add_subplot(111)
         self._fig.show()
         self._fig.canvas.draw()
+        matplotlib.use(plot_backend)
 
 
     def _plot_training(self):
+        import matplotlib
+        plot_backend = matplotlib.get_backend()
+        if self._plot=='save':
+            matplotlib.use('agg')
         self._ax.clear()
         plt.plot(self.train_losses, label="Training")
         plt.plot(self.validation_losses, label="Validation")
@@ -283,3 +288,4 @@ class Trainer:
         plt.pause(0.05)
         if self._plot == 'save':
             plt.savefig(self._plot_filename)
+        matplotlib.use(plot_backend)
