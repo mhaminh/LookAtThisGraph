@@ -10,40 +10,69 @@ from lookatthisgraph.utils.datautils import build_data_list, evaluate_all
 
 class Model:
     def __init__(self, config):
-        self.training_target = config['training_target']
-        self.n_features = config['source_dim']
+        """
+        Class that holds network to evaluate data. Takes in config from Trainer.
+        """
+        self._source_dim = config['source_dim']
         self._target_dim = config['target_dim']
-        self._classifcation = config['classification']
+        self._classification = config['classification']
         self._knn_cols = config['knn_cols']
         self._normalize_output = config['normalize_output']
-        # self._include_charge = config['include_charge']
-        self.net = config['model'] if 'model' in config else ConvNet(self.n_features, self._target_dim, self._knn_cols, self._classifcation, normalize=self._normalize_output)
+        if 'net' in config:
+            self._net = config['net']
+        else:
+            self._net = ConvNet(self._source_dim,
+                        self._target_dim,
+                        self._knn_cols,
+                        self._classification,
+                        normalize=self._normalize_output)
         self._device = torch.device(config['device']) if 'device' in config else torch.device('cuda')
-        self.model = self.net.to(self._device)
+        self._model = self._net.to(self._device)
         self._best_model = config['best_model'] if 'best_model' in config else None
-        self.load_best_model() if self._best_model is not None else None
+        if self._best_model:
+            self.load_best_model()
 
 
     def load_best_model(self):
+        """
+        Load parameters best model provided in config.
+        Usually model with lowest validation error in training.
+        """
         if self._device.type == 'cuda':
-            self.model.load_state_dict(self._best_model)
-            self.model.cuda()
+            self._model.load_state_dict(self._best_model)
+            self._model.cuda()
         elif self._device.type == 'cpu':
             state_dict = deepcopy(self._best_model)
-            for k, v in state_dict.items():
-                  state_dict[k] = v.cpu()
-            self.model.load_state_dict(state_dict)
-            self.model.cpu()
+            for k, var_ in state_dict.items():
+                state_dict[k] = var_.cpu()
+            self._model.load_state_dict(state_dict)
+            self._model.cpu()
 
     def set_device_type(self, device_type):
+        """
+        Change device used for evaluating
+
+        Parameters:
+        ----------
+        device_type: str
+            'cuda' (GPU) or 'cpu'
+        """
         self._device = torch.device(device_type)
-        self.load_best_model() if self._best_model is not None else 0
+        if self._best_model:
+            self.load_best_model()
 
 
     def evaluate_dataset(self, data, batch_size):
         """
         Evaluate all data in dataset or data list
 
+        Parameters:
+        ----------
+        data: Dataset or list of Data
+            Container of data with feature information
+        batch_size: int
+            Batch size used for evaluation
+        """
         # data_list = dataset.data_list
         if isinstance(data, Dataset):
             data_list = data.data_list
