@@ -10,9 +10,10 @@ from copy import deepcopy
 from torch_geometric.data import DataLoader, Data
 from torch.nn import MSELoss, BCELoss
 from lookatthisgraph.utils.model import Model
-from lookatthisgraph.utils.datautils import build_data_list, evaluate_all, cart2polar, torch_to_numpy
+from lookatthisgraph.utils.datautils import build_data_list, evaluate_all, cart2polar, torch_to_numpy, calculate_splits
 from lookatthisgraph.nets.ConvNet import ConvNet
 from lookatthisgraph.utils.loss_functions import arc_loss, distance_loss
+from lookatthisgraph.utils.torchutils import random_split
 from torch.utils.data.sampler import WeightedRandomSampler
 
 
@@ -52,9 +53,10 @@ class Trainer:
         self._batch_size = config['batch_size']
 
         # Set configuration of training, validation, and testing samples
-        self._train_split = config['train_split'] if 'train_split' in config else None
-        self._test_split = config['test_split'] if 'test_split' in config else None
-        self._val_split = config['validation_split'] if 'validation_split' in config else 'batch'
+        train_split = config['train_split'] if 'train_split' in config else None
+        test_split = config['test_split'] if 'test_split' in config else None
+        val_split = config['validation_split'] if 'validation_split' in config else None
+        self.splits = [train_split, val_split, test_split]
 
         # Setup dataloaders
         self.train_loader, self.val_loader, self.test_loader = self._get_loaders()
@@ -116,37 +118,13 @@ class Trainer:
 
     def get_new_loaders(self, train_split, val_split, test_split):
         """Make new dataloaders with supplied split ratios"""
-        self._train_split = train_split
-        self._val_split = val_split
-        self._test_split = test_split
+        self.splits = [train_split, val_split, test_split]
         self.train_loader, self.val_loader, self.test_loader = self._get_loaders()
 
 
     def _get_loaders(self):
         """Calculates number of samples per loader and sets up dataloader"""
-        split = lambda s: int(self.dataset.n_events * s) if s < 1 else int(s)
-
-        if self._val_split == 'batch':
-            n_val = self._batch_size
-        else:
-            n_val = split(self._val_split)
-        if self._train_split is None:
-            if self._test_split is not None:
-                n_test = split(self._test_split)
-            else:
-                n_test = 0
-            n_train = len(self.data_list) - n_val - n_test
-        else:
-            n_train = split(self._train_split)
-            if self._test_split is not None:
-                n_test = split(self._test_split)
-            else:
-                n_test = len(self.data_list) - n_train - n_val
-
-        logging.info('%d training, %d validation, %d test samples received; %d ununsed',
-                     n_train, n_val, n_test, len(self.data_list) - n_train - n_val - n_test)
-        if n_train + n_val + n_test > self.dataset.n_events:
-            raise ValueError('Loader configuration exceeds number of data samples')
+        n_train, n_val, n_test = calculate_splits(*self.splits, len(self.data_list))
 
         dataset_shuffled = [self.data_list[i] for i in self.permutation]
 

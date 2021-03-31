@@ -201,3 +201,30 @@ def truths_to_array(truth_dict):
         truths.append(item)
     truths = np.concatenate(truths, axis=1)
     return truth_cols, truths
+
+def calculate_splits(train_split, val_split, test_split, n_events):
+    split = lambda s: int(n_events * s) if s < 1 else int(s)
+
+    if val_split is not None:
+        n_val = split(val_split)
+    else:
+        raise logging.error('Number of validation samples must be specified!')
+    if train_split is None:
+        if test_split is not None:
+            n_test = split(test_split)
+        else:
+            n_test = 0
+        n_train = n_events - n_val - n_test
+    else:
+        n_train = split(train_split)
+        if test_split is not None:
+            n_test = split(test_split)
+        else:
+            n_test = n_events - n_train - n_val
+
+    logging.info('%d training, %d validation, %d test samples received; %d ununsed',
+                 n_train, n_val, n_test, n_events - n_train - n_val - n_test)
+    if n_train + n_val + n_test > n_events:
+        logging.error('Loader configuration exceeds number of data samples')
+
+    return n_train, n_val, n_test
