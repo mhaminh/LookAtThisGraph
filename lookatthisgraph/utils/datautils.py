@@ -91,7 +91,6 @@ def build_data_list(normalized_features, y_transformed, include_charge=True, cha
     data_list = []
     n_features = normalized_features[0].shape[1]
     feature_cols = np.arange(n_features)
-    # feature_cols = np.delete(feature_cols, charge_col) if ~include_charge else feature_cols
     for features, truth in tqdm(zip(normalized_features, y_transformed),
                                 total=len(y_transformed),
                                 desc='Filling data list'):
@@ -169,11 +168,6 @@ def get_bands(hist_info, quantiles = [norm.cdf(-1), norm.cdf(1)]):
     hist = hist_info[0]
     xedges = hist_info[1]
     yedges = hist_info[2]
-#     sig_lower = norm.cdf(-1)
-#     sig_upper = norm.cdf(1)
-#     upper_idx = []
-#     lower_idx = []
-#     m_idx = []
     idc = [[] for _, _ in enumerate(quantiles)]
     for sl in hist:
         cdf = np.cumsum(sl)
@@ -181,12 +175,6 @@ def get_bands(hist_info, quantiles = [norm.cdf(-1), norm.cdf(1)]):
             threshold = q * cdf[-1]
             idc[i].append(np.argmin(np.abs(cdf - threshold)))
 
-#         upper_q, lower_q, m = sig_upper*cdf[-1], sig_lower*cdf[-1], .5*cdf[-1]
-#         upper_idx.append(np.argmin(np.abs(cdf - upper_q)))
-#         lower_idx.append(np.argmin(np.abs(cdf - lower_q)))
-#         m_idx.append(np.argmin(np.abs(cdf - m)))
-
-#    return yedges[upper_idx], yedges[lower_idx], yedges[m_idx]
     bands = [yedges[idx] for idx in idc]
     return bands
 
