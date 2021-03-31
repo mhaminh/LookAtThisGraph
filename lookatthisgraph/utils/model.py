@@ -18,13 +18,18 @@ class Model:
         self._classification = config['classification']
         self._knn_cols = config['knn_cols']
         self._normalize_output = config['normalize_output']
-        if 'net' in config:
+        self._final_activation = config['final_activation']
+        print(self._final_activation)
+        if config['net'] is not None:
+            print('Use supplied network')
             self._net = config['net']
         else:
-            self._net = ConvNet(self._source_dim,
+            print('Make network with %i input features, %i output clases' % (self._source_dim, self._target_dim))
+            self._net = config['net_class'](self._source_dim,
                         self._target_dim,
                         self._knn_cols,
                         self._classification,
+                        final_activation = self._final_activation,
                         normalize=self._normalize_output)
         self._device = torch.device(config['device']) if 'device' in config else torch.device('cuda')
         self._model = self._net.to(self._device)
