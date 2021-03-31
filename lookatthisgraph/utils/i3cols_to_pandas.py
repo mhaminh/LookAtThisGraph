@@ -227,7 +227,8 @@ def get_truths(indir, eps=1e-3, force_recalculate=False, save_energies=False):
     try:
         weight_dict = np.load(os.path.join(indir, 'I3MCWeightDict', 'data.npy'))
         interaction_df = pd.DataFrame(weight_dict['InteractionType'], columns=['interaction_type'])
-        df = pd.concat([df, interaction_df], axis=1)
+        weight = pd.DataFrame(weight_dict['weight'], columns=['weight'])
+        df = pd.concat([df, interaction_df, weight], axis=1)
     except FileNotFoundError:
         pass
 
