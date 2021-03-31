@@ -155,6 +155,21 @@ def reconvert_zenith(arr):
     return np.arctan2(arr[:, 0], arr[:, 1])
 
 
+def polar2cart(phi, theta):
+    return [
+        np.sin(theta) * np.cos(phi),
+        np.sin(theta) * np.sin(phi),
+        np.cos(theta)
+    ]
+
+
+def cart2polar(x, y, z):
+    phi = np.arctan2(y, x)
+    phi[phi<0] += 2*np.pi
+    theta = np.arctan2(np.sqrt(x**2+y**2), z)
+    return phi, theta
+
+
 def filter_dict(dictionary, filter_mask):
     try:
         dictionary = {key: item[filter_mask] for key, item in dictionary.items()}
