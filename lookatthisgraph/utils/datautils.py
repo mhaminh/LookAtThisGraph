@@ -113,7 +113,11 @@ def evaluate(model, loader, device, mode, pbar=True):
             pred = [torch_to_numpy(model(batch.to(device))) for batch in tqdm(loader)]
         else:
             pred = [torch_to_numpy(model(batch.to(device))) for batch in (loader)]
-    return np.array(pred)
+    if isinstance(pred, list) and len(pred) > 1:
+        pred = np.concatenate(pred)
+    elif isinstance(pred, list) and len(pred) == 1:
+        pred = np.array(pred)[0]
+    return pred
 
 
 def evaluate_all(model, loader, device, mode='eval'):
@@ -125,9 +129,11 @@ def evaluate_all(model, loader, device, mode='eval'):
     if n_rest != 0:
         rest_loader = DataLoader(data_list[-n_rest:], batch_size=n_rest)
         pred_rest = evaluate(model, rest_loader, device, mode, False)
-        out_shape = model.n_labels
-        pred = np.concatenate([pred.reshape(-1, out_shape), pred_rest.reshape(-1, out_shape)])
-    return pred
+        if len(pred) > 0:
+            pred = np.concatenate([pred, pred_rest])
+        else:
+            pred = pred_rest
+    return np.array(pred)
 
 
 
