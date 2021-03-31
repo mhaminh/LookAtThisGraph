@@ -13,6 +13,7 @@ from lookatthisgraph.utils.model import Model
 from lookatthisgraph.utils.datautils import build_data_list, evaluate_all, cart2polar, torch_to_numpy
 from lookatthisgraph.nets.ConvNet import ConvNet
 from lookatthisgraph.utils.loss_functions import arc_loss, distance_loss
+from torch.utils.data.sampler import WeightedRandomSampler
 
 
 class Trainer:
@@ -57,7 +58,7 @@ class Trainer:
 
         # Setup dataloaders
         self.train_loader, self.val_loader, self.test_loader = self._get_loaders()
-        self.test_truths = self.dataset.truths.iloc[self.test_idx]
+        self.test_truths = self.dataset.truths.compute().iloc[self.test_idx]
         self._sampling_weights = self.dataset.truths[config['weights']].copy().values if 'weights' in config else None
 
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=config['learning_rate'])
@@ -153,8 +154,20 @@ class Trainer:
         self.val_idx = self.permutation[n_train:][:n_val]
         self.test_idx = self.permutation[n_train:][n_val:]
 
-        train_loader = DataLoader(dataset_shuffled[:n_train], self._batch_size, drop_last=True, shuffle=True)
-        val_loader = DataLoader(dataset_shuffled[n_train:n_train+n_val], self._batch_size, drop_last=True)
+        if 'weights' in self.config:
+            print('Using %s as weights' % (self.config['weights']))
+            weights = self.dataset.truths[self.config['weights']].values
+            train_sampler = WeightedRandomSampler(weights[self.train_idx], len(self.train_idx))
+            weighted_val = self.config['weighted_validation'] if 'weighted_validation' in self.config else True
+            if weighted_val:
+                val_sampler = WeightedRandomSampler(weights[self.val_idx], len(self.val_idx))
+            else:
+                val_sampler = None
+        else:
+            train_sampler, val_sampler = None, None
+
+        train_loader = DataLoader(dataset_shuffled[:n_train], self._batch_size, drop_last=True, sampler=train_sampler)
+        val_loader = DataLoader(dataset_shuffled[n_train:n_train+n_val], self._batch_size, drop_last=True, sampler=val_sampler)
         test_loader = DataLoader(dataset_shuffled[n_train+n_val:][:n_test], self._batch_size, drop_last=True)
 
         return train_loader, val_loader, test_loader
