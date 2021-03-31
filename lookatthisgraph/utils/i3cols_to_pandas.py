@@ -1,9 +1,12 @@
 import numpy as np
+import logging
+from numpy.lib.format import open_memmap
 import pandas as pd
 import os
 import pickle
 from importlib.resources import path
 import lookatthisgraph.resources
+from tqdm.auto import tqdm
 
 def cart2polar(x, y, z):
     phi = np.arctan2(y, x)
@@ -160,7 +163,7 @@ def load_primary_information(mcprimary):
     return pd.concat([df_0, df_1], axis=1)
 
 
-def get_truths(indir, eps=1e-3):
+def get_truths(indir, eps=1e-3, force_recalculate=False, save_energies=False):
     """
     Get all truth information necessary
 
@@ -172,14 +175,28 @@ def get_truths(indir, eps=1e-3):
         Value to offset for 0-valued track energies
         Otherwise NaN with np.log
     """
-    mctree_data = np.load(os.path.join(indir, 'I3MCTree', 'data.npy'))
+    mctree_data = open_memmap(os.path.join(indir, 'I3MCTree', 'data.npy'))
+    # mctree_data = np.load(os.path.join(indir, 'I3MCTree', 'data.npy'))
     mctree_idx = np.load(os.path.join(indir, 'I3MCTree', 'index.npy'))
 
     primary_idx = mctree_idx['start']
     mcprimary = mctree_data[primary_idx]['particle']
 
     primaries = load_primary_information(mcprimary)
-    energies = get_energies(mctree_data, mctree_idx)
+    try:
+        if force_recalculate:
+            logging.info('Recalculating cascade and track energy information')
+            raise FileNotFoundError  # hacky lol
+        logging.info('Loading precalculated cascade and track energy information')
+        energies = pd.read_pickle(os.path.join(indir, 'processed', 'energies.pkl'))
+        if save_energies:
+            logging.warning('Processed cascade and track energy information found, not saving to file')
+    except FileNotFoundError:
+        energies = get_energies(mctree_data, mctree_idx)
+        if save_energies:
+            logging.info('Saving cascade and track information')
+            os.mkdir(os.path.join(indir, 'processed'))
+            energies.to_pickle(os.path.join(indir, 'processed', 'energies.pkl'))
 
     if len(primaries) != len(energies):
         raise IndexError('Indices of primary information and MCTree do not align')

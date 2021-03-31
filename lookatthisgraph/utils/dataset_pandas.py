@@ -20,6 +20,7 @@ class Dataset:
             upgrade=False,
             feature_labels=None,
             truth_labels=['x', 'y', 'z', 'x_dir', 'y_dir', 'z_dir', 'log10(energy)', 'log10(shower_energy)', 'log10(track_energy)', 'PID']):
+            save_energies=False,
         self.files = indir_list
         self.upgrade = upgrade
         self.truth_labels = truth_labels
@@ -41,6 +42,7 @@ class Dataset:
         self.make_data_list()
 
     def _load_inputs(self):
+    def _load_inputs(self, save_energies):
         """
         Load events and truths from input directories
         Increment event index based on files loaded
@@ -51,11 +53,11 @@ class Dataset:
             raise ValueError('Input list empty')
         elif len(self.files) == 1:
             indir = self.files[0]
-            return get_pulses(indir, self.upgrade), get_truths(indir)
+            return get_pulses(indir, self.upgrade), get_truths(indir, save_energies=save_energies)
         # TODO: Make index checks
         else:
             events = [get_pulses(indir, self.upgrade) for indir in self.files]
-            truths = [get_truths(indir) for indir in self.files]
+            truths = [get_truths(indir, save_energies=save_energies) for indir in self.files]
             # Increment event indices
             last_event_idx = np.array([np.max(frame['event'].unique()) for frame in events])
             increments = np.cumsum(np.concatenate([[0], (np.array(last_event_idx[:-1])+1)]))
