@@ -7,6 +7,8 @@ import pickle
 from importlib.resources import path
 import lookatthisgraph.resources
 from tqdm.auto import tqdm
+import dask
+import dask.dataframe as dd
 
 def cart2polar(x, y, z):
     phi = np.arctan2(y, x)
@@ -35,10 +37,9 @@ def key_to_xyz(df, gcd_path=None):
         with path(lookatthisgraph.resources, 'geo_array.npy') as p:
             gcd_path = p
 
-    # gcd = np.load('../lookatthisgraph/resources/geo_array.npy')
     gcd = np.load(gcd_path)
     codes = df[['string', 'om']] - 1 # IC naming starts at 1
-    codes = codes.to_numpy()
+    codes = codes.values
     xyz = gcd[codes[:,0], codes[:,1]]
     return pd.DataFrame(xyz, columns=['x_om', 'y_om', 'z_om'])
 
@@ -79,18 +80,25 @@ def load_pulses(indir, pulse_frame='SRTTWOfflinePulsesDC'):
     pulse_frame: str
         Name of pulse frame to convert
     """
-    data = np.load(os.path.join(indir, pulse_frame,  'data.npy'))
+    data = open_memmap(os.path.join(indir, pulse_frame,  'data.npy'))
     index = np.load(os.path.join(indir, pulse_frame, 'index.npy'))
     pulse_info = pd.DataFrame(data[:]['pulse'])
+    pulse_info = dd.from_pandas(pulse_info, npartitions=1)
     key_info = pd.DataFrame(data[:]['key'])
-    pulses = pd.concat([pulse_info, key_info], axis=1)
-    lc = pd.Series(pulses['flags'].values & 1, name='is_LC')
-    atwd = pd.Series((pulses['flags'].values & 2)/2, name='has_ATWD')
-    pulses = pd.concat([pulses, lc, atwd], axis=1)
+    key_info = dd.from_pandas(key_info, npartitions=1)
+    pulses = dd.concat([pulse_info, key_info], axis=1)
+
+    lc = pd.Series(np.array(pulses['flags'].values & 1), name='is_LC')
+    atwd = pd.Series((np.array(pulses['flags'].values & 2)/2), name='has_ATWD')
+    lc_atwd = pd.concat([lc, atwd], axis=1)
+    lc_atwd = dd.from_pandas(lc_atwd, npartitions=1)
+    pulses = dd.concat([pulses, lc_atwd], axis=1)
+
     n_pulses = index[:]['stop'] - index[:]['start']
     pulse_idx = np.repeat(np.arange(len(n_pulses)), n_pulses.astype(int))
     pulse_idx = pd.DataFrame({'event': pulse_idx})
-    events = pd.concat([pulses, pulse_idx], axis=1)
+    pulse_idx = dd.from_pandas(pulse_idx, npartitions=1)
+    events = dd.concat([pulses, pulse_idx], axis=1)
     return events
 
 
@@ -118,16 +126,25 @@ def get_pulses(indir, upgrade=False):
         xyz = key_to_xyz(events)
     else:
         xyz = key_to_xyz_upgrade(events)
-    return pd.concat([events, xyz], axis=1)
+    xyz = dd.from_pandas(xyz, npartitions=1)
+    return dd.concat([events, xyz], axis=1)
 
 
 def get_energies(mctree, mctree_idx):
     n_events = len(mctree_idx)
     track_energies = np.zeros(n_events)
-    track_lengths =  np.zeros(n_events) 
+    track_lengths = np.zeros(n_events)
     invisible_energies = np.zeros(n_events)
     neutrino_energies = np.zeros(n_events)
-    
+
+    df = pd.DataFrame({
+        'track_energy': track_energies,
+        'track_length': track_lengths,
+        'neutrino_energy': neutrino_energies,
+        'invisible_energy': invisible_energies,
+        })
+
+    df = dd.from_pandas(df, npartitions=4)
     for i, (start, stop) in enumerate(mctree_idx):
         event = mctree[start:stop]
         pdg = event['particle']['pdg_encoding']
@@ -137,19 +154,19 @@ def get_energies(mctree, mctree_idx):
         # Get maximum energy track-like particle, otherwise 0
         try:
             track_idx = np.argmax(energies[track_mask])
-            track_energies[i] = energies[track_mask][track_idx]
-            track_lengths[i] = lengths[track_mask][track_idx]
+            df['track_energy'].iloc[i] = energies[track_mask][track_idx]
+            df['track_length'].iloc[i] = lengths[track_mask][track_idx]
         except ValueError:
             pass
 
         invisible_mask = (np.abs(pdg) == 12) | (np.abs(pdg) == 14) | (np.abs(pdg) == 16)
         invisible_mask[0] = False # exclude primary particle
-        invisible_energies[i] = np.sum(energies[invisible_mask])
+        df['invisible_energy'].iloc[i] = np.sum(energies[invisible_mask])
 
-        neutrino_energies[i] = event[0]['particle']['energy']
+        df['neutrino_energy'].iloc[i] = event[0]['particle']['energy']
 
-    cascade_energies = neutrino_energies - (track_energies + invisible_energies)
-    df = pd.DataFrame({'shower_energy': cascade_energies, 'track_energy': track_energies, 'track_length': track_lengths})
+    cascade_df = pd.DataFrame(cascade_energies = neutrino_energies - (track_energies + invisible_energies), columns=['cascade_energy'])
+    df = dd.concat([df, cascade_df], axis=1)
     return df
 
 
@@ -176,7 +193,6 @@ def get_truths(indir, eps=1e-3, force_recalculate=False, save_energies=False):
         Otherwise NaN with np.log
     """
     mctree_data = open_memmap(os.path.join(indir, 'I3MCTree', 'data.npy'))
-    # mctree_data = np.load(os.path.join(indir, 'I3MCTree', 'data.npy'))
     mctree_idx = np.load(os.path.join(indir, 'I3MCTree', 'index.npy'))
 
     primary_idx = mctree_idx['start']
@@ -247,15 +263,16 @@ def dataframe_to_event_list(df, labels=None):
     labels: list, optional:
         list with columns of interest
     """
-    if not df['event'].is_monotonic:
+    is_monotonically_increasing = lambda arr: np.all(np.diff(arr) >= 0)
+    if not is_monotonically_increasing(df['event']):
         raise IndexError('Dataframe is not sorted by pulse')
 
-    if labels == None:
+    if labels is None:
         labels = df.columns
 
-    event_idx = df['event'].values
+    event_idx = np.array(df['event'].values)
     df = df[labels]
-    values = df.values
+    values = np.array(df.values)
     names = df.columns
     ukeys, index = np.unique(event_idx, True)
     if 'event' in names:
