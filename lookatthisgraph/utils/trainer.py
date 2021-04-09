@@ -60,7 +60,10 @@ class Trainer:
 
         # Setup dataloaders
         self.train_loader, self.val_loader, self.test_loader = self._get_loaders()
-        self.test_truths = self.dataset.truths.compute().iloc[self.test_idx]
+        try:
+            self.test_truths = self.dataset.truths.compute().iloc[self.test_idx]
+        except AttributeError:
+            self.test_truths = self.dataset.truths.iloc[self.test_idx]
         self._sampling_weights = self.dataset.truths[config['weights']].copy().values if 'weights' in config else None
 
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=config['learning_rate'])
