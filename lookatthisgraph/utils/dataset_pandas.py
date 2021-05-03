@@ -28,6 +28,7 @@ class Dataset:
             feature_labels=None,
             truth_labels=['x', 'y', 'z', 'x_dir', 'y_dir', 'z_dir', 'log10(energy)', 'log10(shower_energy)', 'log10(track_energy)', 'PID'],
             save_energies=False,
+            force_recalculate=False,
             make_data_list=False):
         self.files = indir_list
         self.upgrade = upgrade
@@ -35,8 +36,8 @@ class Dataset:
             self.feature_labels = ['x_om', 'y_om', 'z_om', 'time', 'charge']
         elif feature_labels is None and self.upgrade:
             self.feature_labels = ['x_om', 'y_om', 'z_om', 'time', 'charge', 'xdir_om', 'ydir_om', 'zdir_om', 'is_IceCube', 'is_PDOM', 'is_mDOM', 'is_DEgg']
-        print('Loading inputs')
-        self.raw_pulses, self.truths = self._load_inputs(save_energies)
+        logging.info('Loading inputs')
+        self.raw_pulses, self.truths = self._load_inputs(save_energies, force_recalculate)
         event_idx = list(self.raw_pulses['event'].unique())
         self._non_empty_mask = self.truths['event'].isin(event_idx) # Remove truths of empty pulses
         self.truths = self.truths[self._non_empty_mask]
@@ -44,16 +45,16 @@ class Dataset:
         self.truths.reset_index(drop=True)
         self._means, self._stds = self._get_normalization_parameters()
         self.normalized_pulses = None
-        print('Normalizing pulses')
+        logging.info('Normalizing pulses')
         self._make_normalized_pulses(self._means, self._stds)
         self.normalization_parameters = {'means':  self._means, 'stds': self._stds}
         self.data_list = None
         self.n_events = None
         if make_data_list:
-            print('Making data list')
-            self.make_data_list()
+            logging.info('Making data list')
+            self.make_data_list(truth_labels)
 
-    def _load_inputs(self, save_energies):
+    def _load_inputs(self, save_energies=False, force_recalculate=False):
         """
         Load events and truths from input directories
         Increment event index based on files loaded
@@ -64,11 +65,14 @@ class Dataset:
             raise ValueError('Input list empty')
         elif len(self.files) == 1:
             indir = self.files[0]
-            return get_pulses(indir, self.upgrade), get_truths(indir, save_energies=save_energies)
+            return get_pulses(indir, self.upgrade), get_truths(indir, save_energies=save_energies, force_recalculate=force_recalculate)
         # TODO: Make index checks
         else:
             events = [get_pulses(indir, self.upgrade) for indir in self.files]
-            truths = [get_truths(indir, save_energies=save_energies) for indir in self.files]
+            truths = [get_truths(indir,
+                                 save_energies=save_energies,
+                                 force_recalculate=force_recalculate)
+                    for indir in self.files]
             # Increment event indices
             last_event_idx = np.array([np.max(np.unique(frame['event'])) for frame in events])
             increments = np.cumsum(np.concatenate([[0], (np.array(last_event_idx[:-1])+1)]))
@@ -106,7 +110,9 @@ class Dataset:
         event_list = dataframe_to_event_list(self.normalized_pulses)
         if truth_labels is None:
             truth_labels = self.truths.columns
-        truths = np.array(self.truths[truth_labels].values)
+        truths = self.truths[truth_labels]
+        truths = truths.compute()
+        truths = truths.values
         difference = np.setdiff1d(self.normalized_pulses['event'].unique(), self.truths['event'].unique())
         if len(difference) > 0:
             raise ValueError('Number of entries in event list and truths not matching: Events %i' % (difference))
@@ -137,7 +143,7 @@ class Dataset:
         if os.path.exists(fname) and not overwrite:
             raise FileError('File already exists')
         elif overwrite:
-            print('Overwriting existing file')
+            logging.info('Overwriting existing file')
             os.remove(fname)
         with pd.HDFStore(fname) as s:
             s['data/pulses'] = self.raw_pulses

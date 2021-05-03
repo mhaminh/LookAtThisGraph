@@ -176,8 +176,8 @@ def load_primary_information(mcprimary):
     labels = ['pdg_encoding', 'time', 'energy']
     superlabels = ['pos', 'dir']
     df_0 = pd.DataFrame(mcprimary[labels])
-    df_1 = pd.concat([pd.DataFrame(mcprimary[l]) for l in superlabels], axis=1)
-    return pd.concat([df_0, df_1], axis=1)
+    df_1 = dd.concat([pd.DataFrame(mcprimary[l]) for l in superlabels], axis=1)
+    return dd.concat([df_0, df_1], axis=1)
 
 
 def get_truths(indir, eps=1e-3, force_recalculate=False, save_energies=False):
@@ -217,16 +217,13 @@ def get_truths(indir, eps=1e-3, force_recalculate=False, save_energies=False):
     if len(primaries) != len(energies):
         raise IndexError('Indices of primary information and MCTree do not align')
 
-    df = pd.concat([primaries, energies], axis=1)
+    df = dd.concat([primaries, energies], axis=1)
     event_idx = pd.DataFrame(np.arange(len(df)), columns=['event'])
-
-    # Get PID
-    pid = pd.Series((df['track_energy'].values > 0).astype(float), name='PID')
-    df = pd.concat([df, pid], axis=1)
 
     # Convert energies to log
     energies = df[['energy', 'shower_energy', 'track_energy']].copy()
-    log_energies = np.log10(energies.values + eps)
+    log_energies = np.log10(np.array(energies) + eps)
+    # log_energies = np.log10(energies.values + eps)
     log_energy_names = ['log10('+ name + ')'  for name in energies.columns]
     log_energy_df = pd.DataFrame(log_energies, columns=log_energy_names)
 
@@ -237,18 +234,19 @@ def get_truths(indir, eps=1e-3, force_recalculate=False, save_energies=False):
     polar_df = pd.DataFrame(polar_directions.T, columns=['x_dir', 'y_dir', 'z_dir'])
 
     # Get PID information (0 = cascade, 1 = track)
-    pid = pd.DataFrame((df['track_energy'].values > 0).astype(int), columns=['pid'])
+    pid = pd.DataFrame((np.array(df['track_energy']) > 0).astype(int), columns=['PID'])
+    # pid = pd.DataFrame((df['track_energy'].values > 0).astype(int), columns=['pid'])
 
     # Get interaction type (1 = NC, 2 = CC); not available for Upgrade data yet
     try:
         weight_dict = np.load(os.path.join(indir, 'I3MCWeightDict', 'data.npy'))
         interaction_df = pd.DataFrame(weight_dict['InteractionType'], columns=['interaction_type'])
         weight = pd.DataFrame(weight_dict['weight'], columns=['weight'])
-        df = pd.concat([df, interaction_df, weight], axis=1)
+        df = dd.concat([df, interaction_df, weight], axis=1)
     except FileNotFoundError:
         pass
 
-    return pd.concat([df, log_energy_df, polar_df, pid, event_idx, cosz_df], axis=1)
+    return dd.concat([df, log_energy_df, polar_df, pid, event_idx, cosz_df], axis=1)
 
 
 def dataframe_to_event_list(df, labels=None):
